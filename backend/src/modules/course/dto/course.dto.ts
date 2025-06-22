@@ -8,7 +8,7 @@ import {
   Max,
   IsEnum
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { ComponentType } from '../entities/grade-component.entity';
 
@@ -75,18 +75,28 @@ export class CreateGradeBandDto {
   maxScore: number;
 
   @ApiProperty({
-    description: 'Grade value (GPA point)',
+    description: 'Grade value (can be sent as either grade or gradeValue)',
     example: 6.0
   })
+  @IsOptional()
   @IsNumber()
-  gradeValue: number;
+  gradeValue?: number;
 
   @ApiProperty({
-    description: 'Grade letter representation',
+    description: 'Grade value (alternative field name for frontend compatibility)',
+    example: 6.0
+  })
+  @IsOptional()
+  @IsNumber()
+  grade?: number;
+
+  @ApiPropertyOptional({
+    description: 'Grade letter representation (will be auto-generated if not provided)',
     example: 'D'
   })
+  @IsOptional()
   @IsString()
-  gradeLetter: string;
+  gradeLetter?: string;
 }
 
 export class CreateCourseDto {
@@ -125,6 +135,10 @@ export class CreateCourseDto {
 }
 
 export class UpdateCourseDto {
+  @IsOptional()
+  @IsString()
+  code?: string;
+
   @IsOptional()
   @IsString()
   name?: string;

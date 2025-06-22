@@ -130,8 +130,10 @@ export const courseService = {
   },
 
   // Enrollment management
-  async enrollInCourse(courseId: string): Promise<Enrollment> {
-    return apiClient.post<Enrollment>("/enrollments", { courseId });
+  async enrollInCourse(courseId: string): Promise<{ message: string }> {
+    return apiClient.post<{ message: string }>("/users/enroll/self", {
+      courseId,
+    });
   },
 
   async unenrollFromCourse(courseId: string): Promise<void> {

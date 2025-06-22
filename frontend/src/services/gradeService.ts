@@ -123,7 +123,7 @@ export const gradeService = {
     canReceiveFinalGrade: boolean;
   }> {
     const endpoint = studentId
-      ? `/grades/projected/${courseId}/${studentId}`
+      ? `/grades/projected/${courseId}?studentId=${studentId}`
       : `/grades/projected/${courseId}`;
     return apiClient.get(endpoint);
   },

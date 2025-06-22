@@ -12,6 +12,13 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Textarea } from "../components/ui/textarea";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select";
+import {
   Tabs,
   TabsContent,
   TabsList,
@@ -49,6 +56,13 @@ const EditCoursePage: React.FC = () => {
   // Grade component form
   const [newComponent, setNewComponent] = useState({
     name: "",
+    type: "exam" as
+      | "theory"
+      | "lab"
+      | "assignment"
+      | "quiz"
+      | "exam"
+      | "project",
     weight: 0,
   });
 
@@ -108,14 +122,20 @@ const EditCoursePage: React.FC = () => {
   };
 
   const handleAddGradeComponent = async () => {
-    if (!id || !newComponent.name || newComponent.weight <= 0) return;
+    if (
+      !id ||
+      !newComponent.name ||
+      !newComponent.type ||
+      newComponent.weight <= 0
+    )
+      return;
 
     try {
       await courseService.createGradeComponent(id, newComponent);
       // Reload course to get updated components
       const updatedCourse = await courseService.getCourse(id);
       setCourse(updatedCourse);
-      setNewComponent({ name: "", weight: 0 });
+      setNewComponent({ name: "", type: "exam", weight: 0 });
     } catch (error) {
       console.error("Failed to add grade component:", error);
     }
@@ -354,6 +374,35 @@ const EditCoursePage: React.FC = () => {
                           }))
                         }
                       />
+                      <Select
+                        value={newComponent.type}
+                        onValueChange={(
+                          value:
+                            | "theory"
+                            | "lab"
+                            | "assignment"
+                            | "quiz"
+                            | "exam"
+                            | "project"
+                        ) =>
+                          setNewComponent((prev) => ({
+                            ...prev,
+                            type: value,
+                          }))
+                        }
+                      >
+                        <SelectTrigger className="w-32">
+                          <SelectValue placeholder="Type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="theory">Theory</SelectItem>
+                          <SelectItem value="lab">Lab</SelectItem>
+                          <SelectItem value="assignment">Assignment</SelectItem>
+                          <SelectItem value="quiz">Quiz</SelectItem>
+                          <SelectItem value="exam">Exam</SelectItem>
+                          <SelectItem value="project">Project</SelectItem>
+                        </SelectContent>
+                      </Select>
                       <Input
                         type="number"
                         placeholder="Weight %"
@@ -391,7 +440,7 @@ const EditCoursePage: React.FC = () => {
                             className="flex justify-between items-center p-3 border rounded"
                           >
                             <span className="font-medium">
-                              Grade {band.grade}
+                              Grade {band.gradeValue}
                             </span>
                             <span className="text-sm text-gray-600">
                               {band.minScore}% - {band.maxScore}%

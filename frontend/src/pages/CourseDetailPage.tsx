@@ -604,7 +604,7 @@ const CourseStructure: React.FC<CourseStructureProps> = ({
                     <span>
                       {band.minScore}% - {band.maxScore}%
                     </span>
-                    <Badge>{band.grade}</Badge>
+                    <Badge>{band.gradeValue}</Badge>
                   </div>
                 ))}
               </div>

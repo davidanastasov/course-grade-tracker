@@ -9,7 +9,13 @@ import { Course } from './entities/course.entity';
 import { GradeComponent } from './entities/grade-component.entity';
 import { GradeBand } from './entities/grade-band.entity';
 import { User, UserRole } from '../user/entities/user.entity';
-import { CreateCourseDto, UpdateCourseDto } from './dto/course.dto';
+import { Enrollment, EnrollmentStatus } from '../user/entities/enrollment.entity';
+import {
+  CreateCourseDto,
+  UpdateCourseDto,
+  CreateGradeComponentDto,
+  CreateGradeBandDto
+} from './dto/course.dto';
 
 @Injectable()
 export class CourseService {
@@ -19,7 +25,11 @@ export class CourseService {
     @InjectRepository(GradeComponent)
     private gradeComponentRepository: Repository<GradeComponent>,
     @InjectRepository(GradeBand)
-    private gradeBandRepository: Repository<GradeBand>
+    private gradeBandRepository: Repository<GradeBand>,
+    @InjectRepository(User)
+    private userRepository: Repository<User>,
+    @InjectRepository(Enrollment)
+    private enrollmentRepository: Repository<Enrollment>
   ) {}
 
   async createCourse(createCourseDto: CreateCourseDto, professor: User): Promise<Course> {
@@ -63,10 +73,19 @@ export class CourseService {
   }
 
   async findAll(): Promise<Course[]> {
-    return this.courseRepository.find({
-      relations: ['professor', 'gradeComponents', 'gradeBands'],
-      where: { isActive: true }
-    });
+    const courses = await this.courseRepository
+      .createQueryBuilder('course')
+      .leftJoinAndSelect('course.professor', 'professor')
+      .leftJoinAndSelect('course.gradeComponents', 'gradeComponents')
+      .leftJoinAndSelect('course.gradeBands', 'gradeBands')
+      .loadRelationCountAndMap('course.enrollmentCount', 'course.enrollments', 'enrollment', (qb) =>
+        qb.where('enrollment.status = :status', { status: EnrollmentStatus.ACTIVE })
+      )
+      .loadRelationCountAndMap('course.assignmentCount', 'course.assignments')
+      .where('course.isActive = :isActive', { isActive: true })
+      .getMany();
+
+    return courses;
   }
 
   async findById(id: string): Promise<Course> {
@@ -89,10 +108,41 @@ export class CourseService {
   }
 
   async findByProfessor(professorId: string): Promise<Course[]> {
-    return this.courseRepository.find({
-      where: { professor: { id: professorId }, isActive: true },
-      relations: ['professor', 'gradeComponents', 'gradeBands', 'enrollments']
-    });
+    const courses = await this.courseRepository
+      .createQueryBuilder('course')
+      .leftJoinAndSelect('course.professor', 'professor')
+      .leftJoinAndSelect('course.gradeComponents', 'gradeComponents')
+      .leftJoinAndSelect('course.gradeBands', 'gradeBands')
+      .loadRelationCountAndMap('course.enrollmentCount', 'course.enrollments', 'enrollment', (qb) =>
+        qb.where('enrollment.status = :status', { status: EnrollmentStatus.ACTIVE })
+      )
+      .loadRelationCountAndMap('course.assignmentCount', 'course.assignments')
+      .where('course.professor.id = :professorId', { professorId })
+      .andWhere('course.isActive = :isActive', { isActive: true })
+      .getMany();
+
+    return courses;
+  }
+
+  async findEnrolledCourses(studentId: string): Promise<Course[]> {
+    const courses = await this.courseRepository
+      .createQueryBuilder('course')
+      .leftJoinAndSelect('course.professor', 'professor')
+      .leftJoinAndSelect('course.gradeComponents', 'gradeComponents')
+      .leftJoinAndSelect('course.gradeBands', 'gradeBands')
+      .leftJoin('course.enrollments', 'enrollments')
+      .loadRelationCountAndMap('course.enrollmentCount', 'course.enrollments', 'enrollment', (qb) =>
+        qb.where('enrollment.status = :enrollmentStatus', {
+          enrollmentStatus: EnrollmentStatus.ACTIVE
+        })
+      )
+      .loadRelationCountAndMap('course.assignmentCount', 'course.assignments')
+      .where('enrollments.student.id = :studentId', { studentId })
+      .andWhere('enrollments.status = :status', { status: EnrollmentStatus.ACTIVE })
+      .andWhere('course.isActive = :isActive', { isActive: true })
+      .getMany();
+
+    return courses;
   }
 
   async updateCourse(id: string, updateCourseDto: UpdateCourseDto, user: User): Promise<Course> {
@@ -149,7 +199,7 @@ export class CourseService {
 
   async addGradeComponent(
     courseId: string,
-    componentData: any,
+    componentData: CreateGradeComponentDto,
     user: User
   ): Promise<GradeComponent> {
     const course = await this.findById(courseId);
@@ -167,20 +217,50 @@ export class CourseService {
     return Array.isArray(savedComponent) ? savedComponent[0] : savedComponent;
   }
 
-  async addGradeBand(courseId: string, bandData: any, user: User): Promise<GradeBand> {
+  async addGradeBand(
+    courseId: string,
+    bandData: CreateGradeBandDto,
+    user: User
+  ): Promise<GradeBand> {
     const course = await this.findById(courseId);
 
     if (course.professor.id !== user.id && user.role !== UserRole.ADMIN) {
       throw new ForbiddenException('You can only modify your own courses');
     }
 
+    // Handle mapping from 'grade' to 'gradeValue' if needed
+    // Frontend sends 'grade', backend expects 'gradeValue'
+    const gradeValue = bandData.grade !== undefined ? bandData.grade : bandData.gradeValue;
+    
+    if (gradeValue === undefined) {
+      throw new Error('Either grade or gradeValue must be provided');
+    }
+
+    // Auto-generate gradeLetter if not provided
+    let gradeLetter = bandData.gradeLetter;
+    if (!gradeLetter) {
+      gradeLetter = this.generateGradeLetter(gradeValue);
+    }
+
     const gradeBand = this.gradeBandRepository.create({
-      ...bandData,
+      minScore: bandData.minScore,
+      maxScore: bandData.maxScore,
+      gradeValue,
+      gradeLetter,
       course
     });
 
     const savedBand = await this.gradeBandRepository.save(gradeBand);
     return Array.isArray(savedBand) ? savedBand[0] : savedBand;
+  }
+
+  private generateGradeLetter(gradeValue: number): string {
+    if (gradeValue >= 9) return 'A';
+    if (gradeValue >= 8) return 'B';
+    if (gradeValue >= 7) return 'C';
+    if (gradeValue >= 6) return 'D';
+    if (gradeValue >= 5) return 'E';
+    return 'F';
   }
 
   async calculateProjectedGrade(courseId: string, studentId: string): Promise<any> {
@@ -211,5 +291,27 @@ export class CourseService {
       passingStatus: 'unknown',
       gradeBand: null
     };
+  }
+
+  async getCourseStudents(courseId: string, user: User): Promise<User[]> {
+    // First verify the user has access to this course
+    const course = await this.courseRepository.findOne({
+      where: { id: courseId },
+      relations: ['professor', 'enrollments', 'enrollments.student']
+    });
+
+    if (!course) {
+      throw new NotFoundException('Course not found');
+    }
+
+    // Check authorization
+    if (user.role !== UserRole.ADMIN && course.professor.id !== user.id) {
+      throw new ForbiddenException('You do not have access to this course');
+    }
+
+    // Return only active enrollments
+    return course.enrollments
+      .filter((enrollment) => enrollment.status === EnrollmentStatus.ACTIVE)
+      .map((enrollment) => enrollment.student);
   }
 }

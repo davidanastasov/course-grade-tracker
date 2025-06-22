@@ -40,7 +40,9 @@ export interface Course {
   gradeComponents: GradeComponent[];
   gradeBands: GradeBand[];
   assignments: Assignment[];
-  enrollments: Enrollment[];
+  enrollments?: Enrollment[];
+  enrollmentCount?: number;
+  assignmentCount?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -57,7 +59,7 @@ export interface GradeBand {
   id: string;
   minScore: number;
   maxScore: number;
-  grade: number;
+  gradeValue: number;
   course: Course;
 }
 
@@ -102,6 +104,7 @@ export interface CreateCourseRequest {
 
 export interface CreateGradeComponentRequest {
   name: string;
+  type: "theory" | "lab" | "assignment" | "quiz" | "exam" | "project";
   weight: number;
   courseId: string;
 }

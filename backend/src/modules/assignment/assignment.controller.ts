@@ -12,6 +12,13 @@ import {
   Patch
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiForbiddenResponse
+} from '@nestjs/swagger';
 
 import { AssignmentService } from './assignment.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -26,6 +33,8 @@ import {
 } from './dto/assignment.dto';
 import { Assignment } from './entities/assignment.entity';
 
+@ApiTags('Assignments')
+@ApiBearerAuth('JWT-auth')
 @Controller('assignments')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class AssignmentController {
@@ -41,8 +50,14 @@ export class AssignmentController {
   }
 
   @Get()
-  async findAll(): Promise<AssignmentResponseDto[]> {
-    return this.assignmentService.findAll();
+  @ApiOperation({ summary: 'Get assignments based on user role and access' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of assignments the user has access to',
+    type: [AssignmentResponseDto]
+  })
+  async findAll(@GetUser() user: User): Promise<AssignmentResponseDto[]> {
+    return this.assignmentService.findAll(user);
   }
 
   @Get('my')
@@ -52,13 +67,30 @@ export class AssignmentController {
   }
 
   @Get('course/:courseId')
-  async findByCourse(@Param('courseId') courseId: string): Promise<AssignmentResponseDto[]> {
-    return this.assignmentService.findByCourse(courseId);
+  @ApiOperation({ summary: 'Get assignments for a specific course' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of assignments for the course (filtered by user access)',
+    type: [AssignmentResponseDto]
+  })
+  @ApiForbiddenResponse({ description: 'User does not have access to this course' })
+  async findByCourse(
+    @Param('courseId') courseId: string,
+    @GetUser() user: User
+  ): Promise<AssignmentResponseDto[]> {
+    return this.assignmentService.findByCourse(courseId, user);
   }
 
   @Get(':id')
-  async findById(@Param('id') id: string): Promise<AssignmentResponseDto> {
-    return this.assignmentService.findById(id);
+  @ApiOperation({ summary: 'Get assignment by ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Assignment details',
+    type: AssignmentResponseDto
+  })
+  @ApiForbiddenResponse({ description: 'User does not have access to this assignment' })
+  async findById(@Param('id') id: string, @GetUser() user: User): Promise<AssignmentResponseDto> {
+    return this.assignmentService.findById(id, user);
   }
 
   @Put(':id')

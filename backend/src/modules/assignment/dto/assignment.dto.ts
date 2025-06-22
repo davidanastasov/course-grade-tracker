@@ -1,4 +1,5 @@
 import { IsString, IsNumber, IsOptional, IsDateString, IsEnum, Min } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
 import { AssignmentType, AssignmentStatus } from '../entities/assignment.entity';
 
 export class CreateAssignmentDto {
@@ -39,11 +40,23 @@ export class UpdateAssignmentDto {
   description?: string;
 
   @IsOptional()
+  @IsEnum(AssignmentType)
+  type?: AssignmentType;
+
+  @IsOptional()
+  @Transform(({ value }) => {
+    const parsed = parseFloat(value);
+    return isNaN(parsed) ? value : parsed;
+  })
   @IsNumber()
   @Min(0)
   maxScore?: number;
 
   @IsOptional()
+  @Transform(({ value }) => {
+    const parsed = parseFloat(value);
+    return isNaN(parsed) ? value : parsed;
+  })
   @IsNumber()
   @Min(0)
   weight?: number;
@@ -55,6 +68,10 @@ export class UpdateAssignmentDto {
   @IsOptional()
   @IsEnum(AssignmentStatus)
   status?: AssignmentStatus;
+
+  @IsOptional()
+  @IsString()
+  courseId?: string;
 }
 
 export class AssignmentResponseDto {

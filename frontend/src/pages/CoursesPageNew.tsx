@@ -266,7 +266,7 @@ const CourseCard: React.FC<CourseCardProps> = ({
         <div className="space-y-3">
           <div className="flex items-center text-sm text-gray-600">
             <Users className="h-4 w-4 mr-2" />
-            <span>{course.enrollments?.length || 0} students enrolled</span>
+            <span>{course.enrollmentCount || 0} students enrolled</span>
           </div>
 
           <div className="flex items-center text-sm text-gray-600">
@@ -281,7 +281,7 @@ const CourseCard: React.FC<CourseCardProps> = ({
               {course.gradeComponents?.length || 0} components
             </Badge>
             <Badge variant="outline">
-              {course.assignments?.length || 0} assignments
+              {course.assignmentCount || 0} assignments
             </Badge>
           </div>
 

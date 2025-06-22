@@ -11,6 +11,7 @@ import { Grade } from './entities/grade.entity';
 import { Assignment } from '../assignment/entities/assignment.entity';
 import { Course } from '../course/entities/course.entity';
 import { User, UserRole } from '../user/entities/user.entity';
+import { Enrollment, EnrollmentStatus } from '../user/entities/enrollment.entity';
 import {
   CreateGradeDto,
   UpdateGradeDto,
@@ -26,7 +27,11 @@ export class GradeService {
     @InjectRepository(Assignment)
     private assignmentRepository: Repository<Assignment>,
     @InjectRepository(Course)
-    private courseRepository: Repository<Course>
+    private courseRepository: Repository<Course>,
+    @InjectRepository(User)
+    private userRepository: Repository<User>,
+    @InjectRepository(Enrollment)
+    private enrollmentRepository: Repository<Enrollment>
   ) {}
 
   async createGrade(createGradeDto: CreateGradeDto, student: User): Promise<Grade> {
@@ -305,5 +310,52 @@ export class GradeService {
         name: grade.course.name
       }
     };
+  }
+
+  async getGradesSummary(courseId: string, user: User): Promise<any[]> {
+    // First verify the user has access to this course
+    const course = await this.courseRepository.findOne({
+      where: { id: courseId },
+      relations: ['professor', 'enrollments', 'enrollments.student']
+    });
+
+    if (!course) {
+      throw new NotFoundException('Course not found');
+    }
+
+    // Check authorization
+    if (user.role !== UserRole.ADMIN && course.professor.id !== user.id) {
+      throw new ForbiddenException('You do not have access to this course');
+    }
+
+    // Get grades summary for all enrolled students
+    const activeEnrollments = course.enrollments.filter(
+      (enrollment) => enrollment.status === EnrollmentStatus.ACTIVE
+    );
+
+    const summaries = await Promise.all(
+      activeEnrollments.map(async (enrollment) => {
+        try {
+          const projectedGrade = await this.calculateProjectedGrade(
+            enrollment.student.id,
+            courseId
+          );
+          return {
+            student: enrollment.student,
+            ...projectedGrade
+          };
+        } catch (error) {
+          return {
+            student: enrollment.student,
+            currentGrade: 0,
+            projectedGrade: 0,
+            isEligible: false,
+            status: 'error'
+          };
+        }
+      })
+    );
+
+    return summaries;
   }
 }

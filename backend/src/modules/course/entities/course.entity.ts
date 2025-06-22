@@ -59,4 +59,8 @@ export class Course {
 
   @OneToMany(() => Assignment, (assignment) => assignment.course)
   assignments: Assignment[];
+
+  // Computed properties (not persisted to database)
+  enrollmentCount?: number;
+  assignmentCount?: number;
 }

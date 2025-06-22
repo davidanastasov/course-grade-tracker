@@ -369,7 +369,7 @@ const CreateCoursePage: React.FC = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {gradeComponents.map((component, index) => (
+                  {gradeComponents.map((component) => (
                     <div key={component.id} className="p-4 border rounded-lg">
                       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                         <div>

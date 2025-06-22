@@ -1,4 +1,5 @@
 import { Controller, Get, Put, Post, Body, Param, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -7,8 +8,10 @@ import { GetUser } from '../auth/decorators/get-user.decorator';
 import { UserService } from './user.service';
 import { User, UserRole } from './entities/user.entity';
 import { UpdateUserDto, UserResponseDto } from './dto/user.dto';
-import { EnrollmentDto } from './dto/enrollment.dto';
+import { EnrollmentDto, SelfEnrollmentDto } from './dto/enrollment.dto';
 
+@ApiTags('Users')
+@ApiBearerAuth('JWT-auth')
 @Controller('users')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class UserController {
@@ -64,6 +67,30 @@ export class UserController {
   async enrollStudent(@Body() enrollmentDto: EnrollmentDto): Promise<{ message: string }> {
     await this.userService.enrollStudent(enrollmentDto);
     return { message: 'Student enrolled successfully' };
+  }
+
+  @Post('enroll/self')
+  @Roles(UserRole.STUDENT)
+  @ApiOperation({ summary: 'Self-enroll in a course' })
+  @ApiResponse({
+    status: 201,
+    description: 'Successfully enrolled in course',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'Successfully enrolled in course' }
+      }
+    }
+  })
+  async enrollSelf(
+    @GetUser() user: User,
+    @Body() body: SelfEnrollmentDto
+  ): Promise<{ message: string }> {
+    await this.userService.enrollStudent({
+      studentId: user.id,
+      courseId: body.courseId
+    });
+    return { message: 'Successfully enrolled in course' };
   }
 
   @Get('enrollments/my')

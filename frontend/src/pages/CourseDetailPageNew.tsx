@@ -377,16 +377,16 @@ const CourseAssignments: React.FC<CourseAssignmentsProps> = ({
                     <CardDescription>{assignment.description}</CardDescription>
                   </div>
                   <div className="flex gap-2">
-                    {assignment.deadline && (
+                    {assignment.dueDate && (
                       <Badge
                         variant={
-                          new Date(assignment.deadline) < new Date()
+                          new Date(assignment.dueDate) < new Date()
                             ? "destructive"
                             : "secondary"
                         }
                       >
                         <Calendar className="h-3 w-3 mr-1" />
-                        {new Date(assignment.deadline).toLocaleDateString()}
+                        {new Date(assignment.dueDate).toLocaleDateString()}
                       </Badge>
                     )}
                     <Button asChild size="sm" variant="outline">
@@ -406,14 +406,18 @@ const CourseAssignments: React.FC<CourseAssignmentsProps> = ({
 interface StudentManagementProps {
   students: User[];
   gradesSummary: Array<{
-    student: User;
+    student: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      username: string;
+    };
     projectedGrade: number;
     isEligible: boolean;
     completedComponents: number;
     totalComponents: number;
     finalGrade?: number;
     confirmed: boolean;
-    courseId?: string;
   }>;
   courseId: string;
 }
@@ -421,6 +425,7 @@ interface StudentManagementProps {
 const StudentManagement: React.FC<StudentManagementProps> = ({
   students,
   gradesSummary,
+  courseId,
 }) => {
   return (
     <div className="space-y-6">
@@ -474,11 +479,7 @@ const StudentManagement: React.FC<StudentManagementProps> = ({
                       </>
                     )}
                     <Button asChild size="sm" variant="outline">
-                      <Link
-                        to={`/grades/confirm/${student.id}/${
-                          summary?.courseId || ""
-                        }`}
-                      >
+                      <Link to={`/grades/confirm/${student.id}/${courseId}`}>
                         Confirm Grades
                       </Link>
                     </Button>
@@ -603,7 +604,7 @@ const CourseStructure: React.FC<CourseStructureProps> = ({
                     <span>
                       {band.minScore}% - {band.maxScore}%
                     </span>
-                    <Badge>{band.grade}</Badge>
+                    <Badge>{band.gradeValue}</Badge>
                   </div>
                 ))}
               </div>

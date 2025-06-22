@@ -28,8 +28,15 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { GetUser } from '../auth/decorators/get-user.decorator';
 import { User, UserRole } from '../user/entities/user.entity';
-import { CreateCourseDto, UpdateCourseDto } from './dto/course.dto';
+import {
+  CreateCourseDto,
+  UpdateCourseDto,
+  CreateGradeComponentDto,
+  CreateGradeBandDto
+} from './dto/course.dto';
 import { Course } from './entities/course.entity';
+import { GradeComponent } from './entities/grade-component.entity';
+import { GradeBand } from './entities/grade-band.entity';
 
 @ApiTags('Courses')
 @ApiBearerAuth('JWT-auth')
@@ -72,6 +79,38 @@ export class CourseController {
     return this.courseService.findByProfessor(user.id);
   }
 
+  @Get('enrolled')
+  @Roles(UserRole.STUDENT)
+  @ApiOperation({ summary: 'Get enrolled courses for student' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of enrolled courses',
+    type: [Course]
+  })
+  async findEnrolledCourses(@GetUser() user: User): Promise<Course[]> {
+    return this.courseService.findEnrolledCourses(user.id);
+  }
+
+  @Get(':id/projected-grade/:studentId')
+  async getProjectedGrade(
+    @Param('id') courseId: string,
+    @Param('studentId') studentId: string
+  ): Promise<any> {
+    return this.courseService.calculateProjectedGrade(courseId, studentId);
+  }
+
+  @Get(':id/students')
+  @Roles(UserRole.PROFESSOR, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Get students enrolled in a course' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of enrolled students',
+    type: [User]
+  })
+  async getCourseStudents(@Param('id') courseId: string, @GetUser() user: User): Promise<User[]> {
+    return this.courseService.getCourseStudents(courseId, user);
+  }
+
   @Get(':id')
   async findById(@Param('id') id: string): Promise<Course> {
     return this.courseService.findById(id);
@@ -107,29 +146,33 @@ export class CourseController {
 
   @Post(':id/grade-components')
   @Roles(UserRole.PROFESSOR, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Add a grade component to a course' })
+  @ApiResponse({
+    status: 201,
+    description: 'Grade component successfully added',
+    type: GradeComponent
+  })
   async addGradeComponent(
     @Param('id') courseId: string,
-    @Body() componentData: any,
+    @Body() componentData: CreateGradeComponentDto,
     @GetUser() user: User
-  ): Promise<any> {
+  ): Promise<GradeComponent> {
     return this.courseService.addGradeComponent(courseId, componentData, user);
   }
 
   @Post(':id/grade-bands')
   @Roles(UserRole.PROFESSOR, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Add a grade band to a course' })
+  @ApiResponse({
+    status: 201,
+    description: 'Grade band successfully added',
+    type: GradeBand
+  })
   async addGradeBand(
     @Param('id') courseId: string,
-    @Body() bandData: any,
+    @Body() bandData: CreateGradeBandDto,
     @GetUser() user: User
-  ): Promise<any> {
+  ): Promise<GradeBand> {
     return this.courseService.addGradeBand(courseId, bandData, user);
-  }
-
-  @Get(':id/projected-grade/:studentId')
-  async getProjectedGrade(
-    @Param('id') courseId: string,
-    @Param('studentId') studentId: string
-  ): Promise<any> {
-    return this.courseService.calculateProjectedGrade(courseId, studentId);
   }
 }

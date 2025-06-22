@@ -8,6 +8,7 @@ import * as fs from 'fs';
 import { Assignment, AssignmentStatus } from './entities/assignment.entity';
 import { Course } from '../course/entities/course.entity';
 import { User, UserRole } from '../user/entities/user.entity';
+import { EnrollmentStatus } from '../user/entities/enrollment.entity';
 import {
   CreateAssignmentDto,
   UpdateAssignmentDto,
@@ -54,34 +55,123 @@ export class AssignmentService {
     return this.assignmentRepository.save(assignment);
   }
 
-  async findAll(): Promise<AssignmentResponseDto[]> {
-    const assignments = await this.assignmentRepository.find({
-      relations: ['course', 'createdBy'],
-      order: { createdAt: 'DESC' }
-    });
+  async findAll(user: User): Promise<AssignmentResponseDto[]> {
+    let assignments: Assignment[];
+
+    if (user.role === UserRole.ADMIN) {
+      // Admins can see all assignments
+      assignments = await this.assignmentRepository.find({
+        relations: ['course', 'createdBy'],
+        order: { createdAt: 'DESC' }
+      });
+    } else if (user.role === UserRole.PROFESSOR) {
+      // Professors can only see assignments from their own courses
+      assignments = await this.assignmentRepository.find({
+        where: { course: { professor: { id: user.id } } },
+        relations: ['course', 'createdBy'],
+        order: { createdAt: 'DESC' }
+      });
+    } else {
+      // Students can only see assignments from courses they're enrolled in
+      assignments = await this.assignmentRepository
+        .createQueryBuilder('assignment')
+        .leftJoinAndSelect('assignment.course', 'course')
+        .leftJoinAndSelect('assignment.createdBy', 'createdBy')
+        .leftJoinAndSelect('course.enrollments', 'enrollments')
+        .where('enrollments.student.id = :studentId', { studentId: user.id })
+        .andWhere('enrollments.status = :status', { status: EnrollmentStatus.ACTIVE })
+        .andWhere('assignment.status = :assignmentStatus', {
+          assignmentStatus: AssignmentStatus.PUBLISHED
+        })
+        .orderBy('assignment.dueDate', 'ASC')
+        .getMany();
+    }
 
     return assignments.map(this.mapToResponseDto);
   }
 
-  async findById(id: string): Promise<AssignmentResponseDto> {
+  async findById(id: string, user: User): Promise<AssignmentResponseDto> {
     const assignment = await this.assignmentRepository.findOne({
       where: { id },
-      relations: ['course', 'createdBy', 'grades', 'grades.student']
+      relations: [
+        'course',
+        'course.professor',
+        'course.enrollments',
+        'course.enrollments.student',
+        'createdBy',
+        'grades',
+        'grades.student'
+      ]
     });
 
     if (!assignment) {
       throw new NotFoundException('Assignment not found');
     }
 
+    // Check authorization
+    let hasAccess = false;
+    if (user.role === UserRole.ADMIN) {
+      hasAccess = true;
+    } else if (user.role === UserRole.PROFESSOR) {
+      hasAccess = assignment.course.professor.id === user.id;
+    } else if (user.role === UserRole.STUDENT) {
+      // Students can only view published assignments from courses they're enrolled in
+      hasAccess =
+        assignment.status === AssignmentStatus.PUBLISHED &&
+        assignment.course.enrollments.some(
+          (enrollment) =>
+            enrollment.student.id === user.id && enrollment.status === EnrollmentStatus.ACTIVE
+        );
+    }
+
+    if (!hasAccess) {
+      throw new ForbiddenException('You do not have access to this assignment');
+    }
+
     return this.mapToResponseDto(assignment);
   }
 
-  async findByCourse(courseId: string): Promise<AssignmentResponseDto[]> {
-    const assignments = await this.assignmentRepository.find({
-      where: { course: { id: courseId } },
-      relations: ['course', 'createdBy'],
-      order: { dueDate: 'ASC' }
+  async findByCourse(courseId: string, user: User): Promise<AssignmentResponseDto[]> {
+    // First verify the user has access to this course
+    const course = await this.courseRepository.findOne({
+      where: { id: courseId },
+      relations: ['professor', 'enrollments', 'enrollments.student']
     });
+
+    if (!course) {
+      throw new NotFoundException('Course not found');
+    }
+
+    // Check authorization
+    let hasAccess = false;
+    if (user.role === UserRole.ADMIN) {
+      hasAccess = true;
+    } else if (user.role === UserRole.PROFESSOR) {
+      hasAccess = course.professor.id === user.id;
+    } else if (user.role === UserRole.STUDENT) {
+      hasAccess = course.enrollments.some(
+        (enrollment) =>
+          enrollment.student.id === user.id && enrollment.status === EnrollmentStatus.ACTIVE
+      );
+    }
+
+    if (!hasAccess) {
+      throw new ForbiddenException('You do not have access to this course');
+    }
+
+    // Build query based on user role
+    const queryBuilder = this.assignmentRepository
+      .createQueryBuilder('assignment')
+      .leftJoinAndSelect('assignment.course', 'course')
+      .leftJoinAndSelect('assignment.createdBy', 'createdBy')
+      .where('assignment.course.id = :courseId', { courseId });
+
+    // Students should only see published assignments
+    if (user.role === UserRole.STUDENT) {
+      queryBuilder.andWhere('assignment.status = :status', { status: AssignmentStatus.PUBLISHED });
+    }
+
+    const assignments = await queryBuilder.orderBy('assignment.dueDate', 'ASC').getMany();
 
     return assignments.map(this.mapToResponseDto);
   }

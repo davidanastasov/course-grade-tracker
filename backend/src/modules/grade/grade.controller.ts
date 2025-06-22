@@ -1,4 +1,5 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Query } from '@nestjs/common';
+import { ApiOperation, ApiResponse } from '@nestjs/swagger';
 
 import { GradeService } from './grade.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -69,6 +70,20 @@ export class GradeController {
     }
 
     return this.gradeService.calculateProjectedGrade(targetStudentId, courseId);
+  }
+
+  @Get('summary/:courseId')
+  @Roles(UserRole.PROFESSOR, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Get grades summary for a course' })
+  @ApiResponse({
+    status: 200,
+    description: 'Grades summary for all students in the course'
+  })
+  async getGradesSummary(
+    @Param('courseId') courseId: string,
+    @GetUser() user: User
+  ): Promise<any[]> {
+    return this.gradeService.getGradesSummary(courseId, user);
   }
 
   @Get(':id')

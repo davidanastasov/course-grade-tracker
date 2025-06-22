@@ -34,11 +34,11 @@ const ProfessorDashboard: React.FC = () => {
   }
 
   const totalStudents = courses.reduce(
-    (sum, course) => sum + (course.enrollments?.length || 0),
+    (sum, course) => sum + (course.enrollmentCount || 0),
     0
   );
   const totalAssignments = courses.reduce(
-    (sum, course) => sum + (course.assignments?.length || 0),
+    (sum, course) => sum + (course.assignmentCount || 0),
     0
   );
 
@@ -170,7 +170,7 @@ const ProfessorDashboard: React.FC = () => {
                   <CardHeader className="pb-3">
                     <CardTitle className="text-lg">{course.name}</CardTitle>
                     <CardDescription className="text-sm">
-                      {course.code} • {course.enrollments?.length || 0} students
+                      {course.code} • {course.enrollmentCount || 0} students
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="pt-0">
@@ -180,7 +180,7 @@ const ProfessorDashboard: React.FC = () => {
                           {course.gradeComponents?.length || 0} components
                         </Badge>
                         <Badge variant="outline">
-                          {course.assignments?.length || 0} assignments
+                          {course.assignmentCount || 0} assignments
                         </Badge>
                       </div>
                       <Button asChild size="sm" variant="outline">

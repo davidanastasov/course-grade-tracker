@@ -7,3 +7,8 @@ export class EnrollmentDto {
   @IsUUID()
   courseId: string;
 }
+
+export class SelfEnrollmentDto {
+  @IsUUID()
+  courseId: string;
+}
