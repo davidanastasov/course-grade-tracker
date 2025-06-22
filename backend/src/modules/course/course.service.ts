@@ -231,7 +231,7 @@ export class CourseService {
     // Handle mapping from 'grade' to 'gradeValue' if needed
     // Frontend sends 'grade', backend expects 'gradeValue'
     const gradeValue = bandData.grade !== undefined ? bandData.grade : bandData.gradeValue;
-    
+
     if (gradeValue === undefined) {
       throw new Error('Either grade or gradeValue must be provided');
     }

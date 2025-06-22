@@ -326,7 +326,11 @@ export const useCreateGradeComponent = () => {
       data,
     }: {
       courseId: string;
-      data: { name: string; type: "theory" | "lab" | "assignment" | "quiz" | "exam" | "project"; weight: number };
+      data: {
+        name: string;
+        type: "theory" | "lab" | "assignment" | "quiz" | "exam" | "project";
+        weight: number;
+      };
     }) => courseService.createGradeComponent(courseId, data),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({

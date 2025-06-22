@@ -1,6 +1,7 @@
 import { apiClient } from "../lib/api";
 import type {
   Assignment,
+  AssignmentFile,
   AssignmentSubmission,
   CreateAssignmentRequest,
 } from "../types/api";
@@ -38,32 +39,38 @@ export const assignmentService = {
   },
 
   // File management
-  async uploadFile(
-    assignmentId: string,
-    file: File
-  ): Promise<{ filePath: string }> {
-    return apiClient.uploadFile<{ filePath: string }>(
+  async uploadFile(assignmentId: string, file: File): Promise<AssignmentFile> {
+    return apiClient.uploadFile<AssignmentFile>(
       `/assignments/${assignmentId}/upload`,
       file
     );
   },
 
-  async downloadFile(assignmentId: string, fileName?: string): Promise<Blob> {
-    const endpoint = fileName
-      ? `/assignments/${assignmentId}/download/${fileName}`
-      : `/assignments/${assignmentId}/download`;
+  async getAssignmentFiles(assignmentId: string): Promise<AssignmentFile[]> {
+    return apiClient.get<AssignmentFile[]>(
+      `/assignments/${assignmentId}/files`
+    );
+  },
 
-    const response = await fetch(`http://localhost:3000/api${endpoint}`, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
-      },
-    });
+  async downloadFile(fileId: string): Promise<Blob> {
+    const response = await fetch(
+      `http://localhost:3000/api/assignments/files/${fileId}/download`,
+      {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
 
     if (!response.ok) {
       throw new Error("Failed to download file");
     }
 
     return response.blob();
+  },
+
+  async deleteFile(fileId: string): Promise<void> {
+    return apiClient.delete<void>(`/assignments/files/${fileId}`);
   },
 
   // Assignment status
@@ -101,7 +108,7 @@ export const assignmentService = {
       const fileResult = await this.uploadFile(assignmentId, data.file);
       return apiClient.post<AssignmentSubmission>("/assignments/submit", {
         assignmentId,
-        filePath: fileResult.filePath,
+        fileId: fileResult.id,
         notes: data.notes,
       });
     }

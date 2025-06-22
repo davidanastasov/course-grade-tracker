@@ -120,21 +120,32 @@ const AssignmentDetailPage: React.FC = () => {
     }
   };
 
-  const handleFileDownload = async () => {
-    if (!id) return;
-
+  const handleFileDownload = async (fileId: string, fileName: string) => {
     try {
-      const blob = await assignmentService.downloadFile(id);
+      const blob = await assignmentService.downloadFile(fileId);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `assignment-${assignment?.title || "file"}`;
+      a.download = fileName;
       document.body.appendChild(a);
       a.click();
       URL.revokeObjectURL(url);
       document.body.removeChild(a);
     } catch (error) {
       console.error("Failed to download file:", error);
+    }
+  };
+
+  const handleFileDelete = async (fileId: string) => {
+    if (!id) return;
+
+    try {
+      await assignmentService.deleteFile(fileId);
+      // Reload assignment to get updated file info
+      const updatedAssignment = await assignmentService.getAssignment(id);
+      setAssignment(updatedAssignment);
+    } catch (error) {
+      console.error("Failed to delete file:", error);
     }
   };
 
@@ -307,23 +318,42 @@ const AssignmentDetailPage: React.FC = () => {
             <CardDescription>Assignment files and attachments</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {assignment.filePath ? (
-              <div className="border rounded-lg p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Assignment File</p>
-                    <p className="text-sm text-gray-600">
-                      Attached by instructor
-                    </p>
+            {assignment.files && assignment.files.length > 0 ? (
+              <div className="space-y-3">
+                {assignment.files.map((file) => (
+                  <div key={file.id} className="border rounded-lg p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="font-medium">{file.originalName}</p>
+                        <p className="text-sm text-gray-600">
+                          {(file.size / 1024).toFixed(1)} KB •
+                          Uploaded on{" "}
+                          {new Date(file.uploadedAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={() =>
+                            handleFileDownload(file.id, file.originalName)
+                          }
+                          variant="outline"
+                          size="sm"
+                        >
+                          Download
+                        </Button>
+                        {canEdit && (
+                          <Button
+                            onClick={() => handleFileDelete(file.id)}
+                            variant="destructive"
+                            size="sm"
+                          >
+                            Delete
+                          </Button>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <Button
-                    onClick={handleFileDownload}
-                    variant="outline"
-                    size="sm"
-                  >
-                    Download
-                  </Button>
-                </div>
+                ))}
               </div>
             ) : (
               <p className="text-gray-500 text-sm">No files attached</p>
@@ -420,7 +450,7 @@ const AssignmentDetailPage: React.FC = () => {
                   </div>
                 )}
 
-                {submission.filePath && (
+                {submission.fileId && (
                   <div>
                     <h4 className="font-medium text-gray-900 mb-2">
                       Submitted File
@@ -433,11 +463,9 @@ const AssignmentDetailPage: React.FC = () => {
                         <Button
                           onClick={async () => {
                             try {
-                              const blob =
-                                await assignmentService.downloadSubmissionFile(
-                                  id!,
-                                  user.id
-                                );
+                              const blob = await assignmentService.downloadFile(
+                                submission.fileId!
+                              );
                               const url = URL.createObjectURL(blob);
                               const a = document.createElement("a");
                               a.href = url;

@@ -4,15 +4,18 @@ import { Repository } from 'typeorm';
 import { extname } from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import * as fs from 'fs';
+import * as path from 'path';
 
 import { Assignment, AssignmentStatus } from './entities/assignment.entity';
+import { AssignmentFile } from './entities/assignment-file.entity';
 import { Course } from '../course/entities/course.entity';
 import { User, UserRole } from '../user/entities/user.entity';
 import { EnrollmentStatus } from '../user/entities/enrollment.entity';
 import {
   CreateAssignmentDto,
   UpdateAssignmentDto,
-  AssignmentResponseDto
+  AssignmentResponseDto,
+  AssignmentFileDto
 } from './dto/assignment.dto';
 
 @Injectable()
@@ -20,6 +23,8 @@ export class AssignmentService {
   constructor(
     @InjectRepository(Assignment)
     private assignmentRepository: Repository<Assignment>,
+    @InjectRepository(AssignmentFile)
+    private assignmentFileRepository: Repository<AssignmentFile>,
     @InjectRepository(Course)
     private courseRepository: Repository<Course>
   ) {}
@@ -61,14 +66,14 @@ export class AssignmentService {
     if (user.role === UserRole.ADMIN) {
       // Admins can see all assignments
       assignments = await this.assignmentRepository.find({
-        relations: ['course', 'createdBy'],
+        relations: ['course', 'createdBy', 'files'],
         order: { createdAt: 'DESC' }
       });
     } else if (user.role === UserRole.PROFESSOR) {
       // Professors can only see assignments from their own courses
       assignments = await this.assignmentRepository.find({
         where: { course: { professor: { id: user.id } } },
-        relations: ['course', 'createdBy'],
+        relations: ['course', 'createdBy', 'files'],
         order: { createdAt: 'DESC' }
       });
     } else {
@@ -77,6 +82,7 @@ export class AssignmentService {
         .createQueryBuilder('assignment')
         .leftJoinAndSelect('assignment.course', 'course')
         .leftJoinAndSelect('assignment.createdBy', 'createdBy')
+        .leftJoinAndSelect('assignment.files', 'files')
         .leftJoinAndSelect('course.enrollments', 'enrollments')
         .where('enrollments.student.id = :studentId', { studentId: user.id })
         .andWhere('enrollments.status = :status', { status: EnrollmentStatus.ACTIVE })
@@ -100,7 +106,8 @@ export class AssignmentService {
         'course.enrollments.student',
         'createdBy',
         'grades',
-        'grades.student'
+        'grades.student',
+        'files'
       ]
     });
 
@@ -164,6 +171,7 @@ export class AssignmentService {
       .createQueryBuilder('assignment')
       .leftJoinAndSelect('assignment.course', 'course')
       .leftJoinAndSelect('assignment.createdBy', 'createdBy')
+      .leftJoinAndSelect('assignment.files', 'files')
       .where('assignment.course.id = :courseId', { courseId });
 
     // Students should only see published assignments
@@ -179,7 +187,7 @@ export class AssignmentService {
   async findByProfessor(professorId: string): Promise<AssignmentResponseDto[]> {
     const assignments = await this.assignmentRepository.find({
       where: { createdBy: { id: professorId } },
-      relations: ['course', 'createdBy'],
+      relations: ['course', 'createdBy', 'files'],
       order: { createdAt: 'DESC' }
     });
 
@@ -235,7 +243,7 @@ export class AssignmentService {
     assignmentId: string,
     file: Express.Multer.File,
     user: User
-  ): Promise<{ filePath: string }> {
+  ): Promise<AssignmentFileDto> {
     const assignment = await this.assignmentRepository.findOne({
       where: { id: assignmentId },
       relations: ['createdBy']
@@ -263,11 +271,26 @@ export class AssignmentService {
     // Save file
     fs.writeFileSync(filePath, file.buffer);
 
-    // Update assignment with file path
-    assignment.filePath = `/uploads/assignments/${filename}`;
-    await this.assignmentRepository.save(assignment);
+    // Create assignment file record
+    const assignmentFile = this.assignmentFileRepository.create({
+      originalName: file.originalname,
+      fileName: filename,
+      filePath: `/uploads/assignments/${filename}`,
+      mimeType: file.mimetype,
+      size: file.size,
+      assignment
+    });
 
-    return { filePath: assignment.filePath };
+    const savedFile = await this.assignmentFileRepository.save(assignmentFile);
+
+    return {
+      id: savedFile.id,
+      originalName: savedFile.originalName,
+      fileName: savedFile.fileName,
+      mimeType: savedFile.mimeType,
+      size: savedFile.size,
+      uploadedAt: savedFile.uploadedAt
+    };
   }
 
   async publishAssignment(id: string, user: User): Promise<Assignment> {
@@ -306,6 +329,132 @@ export class AssignmentService {
     return this.assignmentRepository.save(assignment);
   }
 
+  async downloadAssignmentFile(
+    fileId: string,
+    user: User
+  ): Promise<{ filePath: string; fileName: string }> {
+    const assignmentFile = await this.assignmentFileRepository.findOne({
+      where: { id: fileId },
+      relations: [
+        'assignment',
+        'assignment.course',
+        'assignment.course.professor',
+        'assignment.course.enrollments',
+        'assignment.course.enrollments.student'
+      ]
+    });
+
+    if (!assignmentFile) {
+      throw new NotFoundException('Assignment file not found');
+    }
+
+    const assignment = assignmentFile.assignment;
+
+    // Check if user has access to this assignment using the same logic as findById
+    let hasAccess = false;
+    if (user.role === UserRole.ADMIN) {
+      hasAccess = true;
+    } else if (user.role === UserRole.PROFESSOR) {
+      hasAccess = assignment.course.professor.id === user.id;
+    } else if (user.role === UserRole.STUDENT) {
+      // Students can only download files from published assignments from courses they're enrolled in
+      hasAccess =
+        assignment.status === AssignmentStatus.PUBLISHED &&
+        assignment.course.enrollments.some(
+          (enrollment) =>
+            enrollment.student.id === user.id && enrollment.status === EnrollmentStatus.ACTIVE
+        );
+    }
+
+    if (!hasAccess) {
+      throw new ForbiddenException('You do not have access to this assignment file');
+    }
+
+    // Get the absolute file path
+    const fullPath = path.join(process.cwd(), assignmentFile.filePath);
+
+    // Check if file exists
+    if (!fs.existsSync(fullPath)) {
+      throw new NotFoundException('Assignment file not found on server');
+    }
+
+    return {
+      filePath: fullPath,
+      fileName: assignmentFile.originalName
+    };
+  }
+
+  async deleteAssignmentFile(fileId: string, user: User): Promise<{ message: string }> {
+    const assignmentFile = await this.assignmentFileRepository.findOne({
+      where: { id: fileId },
+      relations: ['assignment', 'assignment.createdBy']
+    });
+
+    if (!assignmentFile) {
+      throw new NotFoundException('Assignment file not found');
+    }
+
+    if (assignmentFile.assignment.createdBy.id !== user.id && user.role !== UserRole.ADMIN) {
+      throw new ForbiddenException('You can only delete files from your own assignments');
+    }
+
+    // Delete physical file
+    const fullPath = path.join(process.cwd(), assignmentFile.filePath);
+    if (fs.existsSync(fullPath)) {
+      fs.unlinkSync(fullPath);
+    }
+
+    // Delete database record
+    await this.assignmentFileRepository.remove(assignmentFile);
+
+    return { message: 'Assignment file deleted successfully' };
+  }
+
+  async getAssignmentFiles(assignmentId: string, user: User): Promise<AssignmentFileDto[]> {
+    const assignment = await this.assignmentRepository.findOne({
+      where: { id: assignmentId },
+      relations: [
+        'files',
+        'course',
+        'course.professor',
+        'course.enrollments',
+        'course.enrollments.student'
+      ]
+    });
+
+    if (!assignment) {
+      throw new NotFoundException('Assignment not found');
+    }
+
+    // Check if user has access to this assignment
+    let hasAccess = false;
+    if (user.role === UserRole.ADMIN) {
+      hasAccess = true;
+    } else if (user.role === UserRole.PROFESSOR) {
+      hasAccess = assignment.course.professor.id === user.id;
+    } else if (user.role === UserRole.STUDENT) {
+      hasAccess =
+        assignment.status === AssignmentStatus.PUBLISHED &&
+        assignment.course.enrollments.some(
+          (enrollment) =>
+            enrollment.student.id === user.id && enrollment.status === EnrollmentStatus.ACTIVE
+        );
+    }
+
+    if (!hasAccess) {
+      throw new ForbiddenException('You do not have access to this assignment');
+    }
+
+    return assignment.files.map((file) => ({
+      id: file.id,
+      originalName: file.originalName,
+      fileName: file.fileName,
+      mimeType: file.mimeType,
+      size: file.size,
+      uploadedAt: file.uploadedAt
+    }));
+  }
+
   private mapToResponseDto(assignment: Assignment): AssignmentResponseDto {
     return {
       id: assignment.id,
@@ -316,7 +465,16 @@ export class AssignmentService {
       weight: assignment.weight,
       dueDate: assignment.dueDate,
       status: assignment.status,
-      filePath: assignment.filePath,
+      files: assignment.files
+        ? assignment.files.map((file) => ({
+            id: file.id,
+            originalName: file.originalName,
+            fileName: file.fileName,
+            mimeType: file.mimeType,
+            size: file.size,
+            uploadedAt: file.uploadedAt
+          }))
+        : [],
       createdAt: assignment.createdAt,
       updatedAt: assignment.updatedAt,
       course: {

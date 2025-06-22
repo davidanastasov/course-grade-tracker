@@ -10,6 +10,7 @@ import { GradeComponent } from '../modules/course/entities/grade-component.entit
 import { GradeBand } from '../modules/course/entities/grade-band.entity';
 import { Enrollment } from '../modules/user/entities/enrollment.entity';
 import { Assignment } from '../modules/assignment/entities/assignment.entity';
+import { AssignmentFile } from '../modules/assignment/entities/assignment-file.entity';
 import { Grade } from '../modules/grade/entities/grade.entity';
 
 @Injectable()
@@ -24,7 +25,16 @@ export class DatabaseConfig implements TypeOrmOptionsFactory {
       username: this.configService.get<string>('DATABASE_USERNAME'),
       password: this.configService.get<string>('DATABASE_PASSWORD'),
       database: this.configService.get<string>('DATABASE_NAME'),
-      entities: [User, Course, GradeComponent, GradeBand, Enrollment, Assignment, Grade],
+      entities: [
+        User,
+        Course,
+        GradeComponent,
+        GradeBand,
+        Enrollment,
+        Assignment,
+        AssignmentFile,
+        Grade
+      ],
       synchronize: this.configService.get<string>('NODE_ENV') === 'development',
       logging: this.configService.get<string>('NODE_ENV') === 'development',
       ssl:
@@ -43,7 +53,16 @@ export const AppDataSource = new DataSource({
   username: process.env.DATABASE_USERNAME || 'postgres',
   password: process.env.DATABASE_PASSWORD || 'password',
   database: process.env.DATABASE_NAME || 'course_grade_tracker',
-  entities: [User, Course, GradeComponent, GradeBand, Enrollment, Assignment, Grade],
+  entities: [
+    User,
+    Course,
+    GradeComponent,
+    GradeBand,
+    Enrollment,
+    Assignment,
+    AssignmentFile,
+    Grade
+  ],
   migrations: ['src/migrations/*.ts'],
   synchronize: false
 });

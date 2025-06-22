@@ -137,9 +137,10 @@ const AssignmentsPage: React.FC = () => {
                       <strong>Created:</strong>{" "}
                       {new Date(assignment.createdAt).toLocaleDateString()}
                     </p>
-                    {assignment.filePath && (
+                    {assignment.files && assignment.files.length > 0 && (
                       <Badge variant="outline" className="text-xs">
-                        Has Attachment
+                        {assignment.files.length} Attachment
+                        {assignment.files.length !== 1 ? "s" : ""}
                       </Badge>
                     )}
                   </div>

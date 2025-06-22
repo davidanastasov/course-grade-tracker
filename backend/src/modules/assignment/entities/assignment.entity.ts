@@ -10,6 +10,7 @@ import {
 import { Course } from '../../course/entities/course.entity';
 import { User } from '../../user/entities/user.entity';
 import { Grade } from '../../grade/entities/grade.entity';
+import { AssignmentFile } from './assignment-file.entity';
 
 export enum AssignmentType {
   LAB = 'lab',
@@ -59,9 +60,6 @@ export class Assignment {
   })
   status: AssignmentStatus;
 
-  @Column({ nullable: true })
-  filePath: string; // Path to uploaded file (assignment description, etc.)
-
   @CreateDateColumn()
   createdAt: Date;
 
@@ -77,4 +75,7 @@ export class Assignment {
 
   @OneToMany(() => Grade, (grade) => grade.assignment)
   grades: Grade[];
+
+  @OneToMany(() => AssignmentFile, (file) => file.assignment, { cascade: true })
+  files: AssignmentFile[];
 }

@@ -63,6 +63,15 @@ export interface GradeBand {
   course: Course;
 }
 
+export interface AssignmentFile {
+  id: string;
+  originalName: string;
+  fileName: string;
+  mimeType: string;
+  size: number;
+  uploadedAt: string;
+}
+
 export interface Assignment {
   id: string;
   title: string;
@@ -72,7 +81,7 @@ export interface Assignment {
   weight: number;
   dueDate?: string;
   status: "draft" | "published" | "completed" | "graded";
-  filePath?: string;
+  files: AssignmentFile[];
   course: Course;
   grades: Grade[];
   createdAt: string;
@@ -136,7 +145,7 @@ export interface CreateGradeRequest {
 export interface AssignmentSubmission {
   assignmentId: string;
   studentId?: string;
-  filePath?: string;
+  fileId?: string;
   notes?: string;
   submittedAt: string;
   isCompleted: boolean;
