@@ -91,7 +91,7 @@ export class CourseService {
   async findByProfessor(professorId: string): Promise<Course[]> {
     return this.courseRepository.find({
       where: { professor: { id: professorId }, isActive: true },
-      relations: ['gradeComponents', 'gradeBands', 'enrollments']
+      relations: ['professor', 'gradeComponents', 'gradeBands', 'enrollments']
     });
   }
 
