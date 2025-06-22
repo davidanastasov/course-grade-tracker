@@ -1,0 +1,7 @@
+**/*.html
+**/*.css
+**/*.js
+**/metronic/
+src/layouts/demo*
+src/components/keenicons/
+public/
