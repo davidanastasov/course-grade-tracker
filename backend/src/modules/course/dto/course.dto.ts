@@ -6,7 +6,8 @@ import {
   ValidateNested,
   Min,
   Max,
-  IsEnum
+  IsEnum,
+  IsBoolean
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -21,12 +22,12 @@ export class CreateGradeComponentDto {
   name: string;
 
   @ApiProperty({
-    description: 'Type of the grade component',
+    description: 'Category of the grade component',
     enum: ComponentType,
     example: ComponentType.EXAM
   })
   @IsEnum(ComponentType)
-  type: ComponentType;
+  category: ComponentType;
 
   @ApiProperty({
     description: 'Weight of this component in the final grade (percentage)',
@@ -49,6 +50,26 @@ export class CreateGradeComponentDto {
   @IsNumber()
   @Min(0)
   minimumScore?: number = 0;
+
+  @ApiPropertyOptional({
+    description: 'Total points available for this component',
+    example: 100,
+    default: 100,
+    minimum: 0
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  totalPoints?: number = 100;
+
+  @ApiPropertyOptional({
+    description: 'Whether this component is mandatory for passing the course',
+    example: false,
+    default: false
+  })
+  @IsOptional()
+  @IsBoolean()
+  isMandatory?: boolean = false;
 }
 
 export class CreateGradeBandDto {
@@ -75,28 +96,29 @@ export class CreateGradeBandDto {
   maxScore: number;
 
   @ApiProperty({
-    description: 'Grade value (can be sent as either grade or gradeValue)',
-    example: 6.0
+    description: 'Grade value (integer between 5-10)',
+    example: 6,
+    minimum: 5,
+    maximum: 10
   })
   @IsOptional()
-  @IsNumber()
+  @IsNumber({}, { message: 'Grade value must be a number' })
+  @Min(5, { message: 'Grade value must be at least 5' })
+  @Max(10, { message: 'Grade value must be at most 10' })
   gradeValue?: number;
 
   @ApiProperty({
-    description: 'Grade value (alternative field name for frontend compatibility)',
-    example: 6.0
+    description:
+      'Grade value (alternative field name for frontend compatibility, integer between 5-10)',
+    example: 6,
+    minimum: 5,
+    maximum: 10
   })
   @IsOptional()
-  @IsNumber()
+  @IsNumber({}, { message: 'Grade must be a number' })
+  @Min(5, { message: 'Grade must be at least 5' })
+  @Max(10, { message: 'Grade must be at most 10' })
   grade?: number;
-
-  @ApiPropertyOptional({
-    description: 'Grade letter representation (will be auto-generated if not provided)',
-    example: 'D'
-  })
-  @IsOptional()
-  @IsString()
-  gradeLetter?: string;
 }
 
 export class CreateCourseDto {

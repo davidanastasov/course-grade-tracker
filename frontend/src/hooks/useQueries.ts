@@ -1,57 +1,52 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { courseService } from "../services/courseService";
-import { gradeService } from "../services/gradeService";
-import { assignmentService } from "../services/assignmentService";
-import { useAuth } from "../contexts/AuthContext";
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { courseService } from '../services/courseService';
+import { gradeService } from '../services/gradeService';
+import { assignmentService } from '../services/assignmentService';
+import { userService } from '../services/userService';
+import { useAuth } from '../contexts/AuthContext';
 
 // Query Keys
 export const queryKeys = {
   // Auth
-  profile: ["profile"] as const,
+  profile: ['profile'] as const,
 
   // Courses
-  courses: ["courses"] as const,
-  course: (id: string) => ["courses", id] as const,
-  myCourses: ["courses", "my"] as const,
-  enrolledCourses: ["courses", "enrolled"] as const,
-  courseEnrollments: (courseId: string) =>
-    ["courses", courseId, "enrollments"] as const,
-  courseStudents: (courseId: string) =>
-    ["courses", courseId, "students"] as const,
+  courses: ['courses'] as const,
+  course: (id: string) => ['courses', id] as const,
+  myCourses: ['courses', 'my'] as const,
+  enrolledCourses: ['courses', 'enrolled'] as const,
+  courseEnrollments: (courseId: string) => ['courses', courseId, 'enrollments'] as const,
+  courseStudents: (courseId: string) => ['courses', courseId, 'students'] as const,
 
   // Grades
-  grades: ["grades"] as const,
+  grades: ['grades'] as const,
   myGrades: (courseId?: string) =>
-    courseId ? ["grades", "my", courseId] : (["grades", "my"] as const),
+    courseId ? ['grades', 'my', courseId] : (['grades', 'my'] as const),
   projectedGrade: (courseId: string, studentId?: string) =>
     studentId
-      ? ["grades", "projected", courseId, studentId]
-      : (["grades", "projected", courseId] as const),
-  gradesSummary: (courseId: string) => ["grades", "summary", courseId] as const,
-  confirmedGrades: (courseId: string) =>
-    ["grades", "confirmed", courseId] as const,
+      ? ['grades', 'projected', courseId, studentId]
+      : (['grades', 'projected', courseId] as const),
+  gradesSummary: (courseId: string) => ['grades', 'summary', courseId] as const,
+  confirmedGrades: (courseId: string) => ['grades', 'confirmed', courseId] as const,
 
   // Assignments
-  assignments: ["assignments"] as const,
-  assignment: (id: string) => ["assignments", id] as const,
-  courseAssignments: (courseId: string) =>
-    ["assignments", "course", courseId] as const,
-  myAssignments: ["assignments", "my"] as const,
+  assignments: ['assignments'] as const,
+  assignment: (id: string) => ['assignments', id] as const,
+  courseAssignments: (courseId: string) => ['assignments', 'course', courseId] as const,
+  myAssignments: ['assignments', 'my'] as const,
   assignmentSubmission: (assignmentId: string, studentId?: string) =>
     studentId
-      ? ["assignments", assignmentId, "submission", studentId]
-      : (["assignments", assignmentId, "submission"] as const),
-  assignmentOverview: (assignmentId: string) =>
-    ["assignments", assignmentId, "overview"] as const,
-  studentProgress: (courseId: string) =>
-    ["assignments", "progress", courseId] as const,
+      ? ['assignments', assignmentId, 'submission', studentId]
+      : (['assignments', assignmentId, 'submission'] as const),
+  assignmentOverview: (assignmentId: string) => ['assignments', assignmentId, 'overview'] as const,
+  studentProgress: (courseId: string) => ['assignments', 'progress', courseId] as const
 };
 
 // Course Hooks
 export const useCourses = () => {
   return useQuery({
     queryKey: queryKeys.courses,
-    queryFn: courseService.getCourses,
+    queryFn: courseService.getCourses
   });
 };
 
@@ -60,10 +55,8 @@ export const useMyCourses = () => {
   return useQuery({
     queryKey: queryKeys.myCourses,
     queryFn:
-      user?.role === "professor"
-        ? courseService.getMyCourses
-        : courseService.getEnrolledCourses,
-    enabled: !!user,
+      user?.role === 'professor' ? courseService.getMyCourses : courseService.getEnrolledCourses,
+    enabled: !!user
   });
 };
 
@@ -71,7 +64,7 @@ export const useCourse = (courseId: string) => {
   return useQuery({
     queryKey: queryKeys.course(courseId),
     queryFn: () => courseService.getCourse(courseId),
-    enabled: !!courseId,
+    enabled: !!courseId
   });
 };
 
@@ -80,7 +73,7 @@ export const useCourseEnrollments = (courseId: string) => {
   return useQuery({
     queryKey: queryKeys.courseEnrollments(courseId),
     queryFn: () => courseService.getCourseEnrollments(courseId),
-    enabled: !!courseId && user?.role === "professor",
+    enabled: !!courseId && user?.role === 'professor'
   });
 };
 
@@ -89,7 +82,7 @@ export const useCourseStudents = (courseId: string) => {
   return useQuery({
     queryKey: queryKeys.courseStudents(courseId),
     queryFn: () => courseService.getEnrolledStudents(courseId),
-    enabled: !!courseId && user?.role === "professor",
+    enabled: !!courseId && user?.role === 'professor'
   });
 };
 
@@ -99,7 +92,7 @@ export const useMyGrades = (courseId?: string) => {
   return useQuery({
     queryKey: queryKeys.myGrades(courseId),
     queryFn: () => gradeService.getMyGrades(courseId),
-    enabled: !!user && user.role === "student",
+    enabled: !!user && user.role === 'student'
   });
 };
 
@@ -108,7 +101,7 @@ export const useProjectedGrade = (courseId: string, studentId?: string) => {
   return useQuery({
     queryKey: queryKeys.projectedGrade(courseId, studentId),
     queryFn: () => gradeService.getProjectedGrade(courseId, studentId),
-    enabled: !!courseId && !!user,
+    enabled: !!courseId && !!user
   });
 };
 
@@ -117,7 +110,7 @@ export const useGradesSummary = (courseId: string) => {
   return useQuery({
     queryKey: queryKeys.gradesSummary(courseId),
     queryFn: () => gradeService.getStudentGradesSummary(courseId),
-    enabled: !!courseId && user?.role === "professor",
+    enabled: !!courseId && user?.role === 'professor'
   });
 };
 
@@ -126,16 +119,16 @@ export const useConfirmedGrades = (courseId: string) => {
   return useQuery({
     queryKey: queryKeys.confirmedGrades(courseId),
     queryFn: () => gradeService.getConfirmedGrades(courseId),
-    enabled: !!courseId && user?.role === "professor",
+    enabled: !!courseId && user?.role === 'professor'
   });
 };
 
 // Assignment Hooks
-export const useCourseAssignments = (courseId: string) => {
+export const useCourseAssignments = (courseId: string, options?: { enabled?: boolean }) => {
   return useQuery({
     queryKey: queryKeys.courseAssignments(courseId),
     queryFn: () => assignmentService.getAssignments(courseId),
-    enabled: !!courseId,
+    enabled: !!courseId && (options?.enabled ?? true)
   });
 };
 
@@ -143,18 +136,15 @@ export const useAssignment = (assignmentId: string) => {
   return useQuery({
     queryKey: queryKeys.assignment(assignmentId),
     queryFn: () => assignmentService.getAssignment(assignmentId),
-    enabled: !!assignmentId,
+    enabled: !!assignmentId
   });
 };
 
-export const useAssignmentSubmission = (
-  assignmentId: string,
-  studentId?: string
-) => {
+export const useAssignmentSubmission = (assignmentId: string, studentId?: string) => {
   return useQuery({
     queryKey: queryKeys.assignmentSubmission(assignmentId, studentId),
     queryFn: () => assignmentService.getSubmission(assignmentId, studentId),
-    enabled: !!assignmentId,
+    enabled: !!assignmentId
   });
 };
 
@@ -163,7 +153,7 @@ export const useAssignmentOverview = (assignmentId: string) => {
   return useQuery({
     queryKey: queryKeys.assignmentOverview(assignmentId),
     queryFn: () => assignmentService.getAssignmentOverview(assignmentId),
-    enabled: !!assignmentId && user?.role === "professor",
+    enabled: !!assignmentId && user?.role === 'professor'
   });
 };
 
@@ -172,7 +162,7 @@ export const useStudentProgress = (courseId: string) => {
   return useQuery({
     queryKey: queryKeys.studentProgress(courseId),
     queryFn: () => assignmentService.getStudentProgress(courseId),
-    enabled: !!courseId && user?.role === "student",
+    enabled: !!courseId && user?.role === 'student'
   });
 };
 
@@ -184,7 +174,7 @@ export const useCreateCourse = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.courses });
       queryClient.invalidateQueries({ queryKey: queryKeys.myCourses });
-    },
+    }
   });
 };
 
@@ -195,7 +185,23 @@ export const useEnrollInCourse = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.myCourses });
       queryClient.invalidateQueries({ queryKey: queryKeys.enrolledCourses });
-    },
+    }
+  });
+};
+
+export const useRemoveStudentFromCourse = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ studentId, courseId }: { studentId: string; courseId: string }) =>
+      userService.removeStudentFromCourse(studentId, courseId),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.course(variables.courseId)
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.courseStudents(variables.courseId)
+      });
+    }
   });
 };
 
@@ -205,12 +211,12 @@ export const useSubmitGrade = () => {
     mutationFn: gradeService.submitGrade,
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
-        queryKey: queryKeys.myGrades(variables.courseId),
+        queryKey: queryKeys.myGrades(variables.courseId)
       });
       queryClient.invalidateQueries({
-        queryKey: queryKeys.projectedGrade(variables.courseId),
+        queryKey: queryKeys.projectedGrade(variables.courseId)
       });
-    },
+    }
   });
 };
 
@@ -220,7 +226,7 @@ export const useSubmitComponentGrade = () => {
     mutationFn: ({
       courseId,
       componentId,
-      score,
+      score
     }: {
       courseId: string;
       componentId: string;
@@ -228,12 +234,12 @@ export const useSubmitComponentGrade = () => {
     }) => gradeService.submitComponentGrade(courseId, componentId, score),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
-        queryKey: queryKeys.myGrades(variables.courseId),
+        queryKey: queryKeys.myGrades(variables.courseId)
       });
       queryClient.invalidateQueries({
-        queryKey: queryKeys.projectedGrade(variables.courseId),
+        queryKey: queryKeys.projectedGrade(variables.courseId)
       });
-    },
+    }
   });
 };
 
@@ -244,22 +250,21 @@ export const useConfirmGrade = () => {
       studentId,
       courseId,
       finalGrade,
-      notes,
+      notes
     }: {
       studentId: string;
       courseId: string;
       finalGrade: number;
       notes?: string;
-    }) =>
-      gradeService.confirmStudentGrade(studentId, courseId, finalGrade, notes),
+    }) => gradeService.confirmStudentGrade(studentId, courseId, finalGrade, notes),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
-        queryKey: queryKeys.gradesSummary(variables.courseId),
+        queryKey: queryKeys.gradesSummary(variables.courseId)
       });
       queryClient.invalidateQueries({
-        queryKey: queryKeys.confirmedGrades(variables.courseId),
+        queryKey: queryKeys.confirmedGrades(variables.courseId)
       });
-    },
+    }
   });
 };
 
@@ -269,10 +274,10 @@ export const useCreateAssignment = () => {
     mutationFn: assignmentService.createAssignment,
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
-        queryKey: queryKeys.courseAssignments(variables.courseId),
+        queryKey: queryKeys.courseAssignments(variables.courseId)
       });
       queryClient.invalidateQueries({ queryKey: queryKeys.assignments });
-    },
+    }
   });
 };
 
@@ -281,40 +286,35 @@ export const useSubmitAssignment = () => {
   return useMutation({
     mutationFn: ({
       assignmentId,
-      data,
+      data
     }: {
       assignmentId: string;
       data: { notes?: string; file?: File };
     }) => assignmentService.submitAssignment(assignmentId, data),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
-        queryKey: queryKeys.assignmentSubmission(variables.assignmentId),
+        queryKey: queryKeys.assignmentSubmission(variables.assignmentId)
       });
       queryClient.invalidateQueries({
-        queryKey: queryKeys.assignmentOverview(variables.assignmentId),
+        queryKey: queryKeys.assignmentOverview(variables.assignmentId)
       });
-    },
+    }
   });
 };
 
 export const useMarkAssignmentCompleted = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({
-      assignmentId,
-      notes,
-    }: {
-      assignmentId: string;
-      notes?: string;
-    }) => assignmentService.markAsCompleted(assignmentId, notes),
+    mutationFn: ({ assignmentId, notes }: { assignmentId: string; notes?: string }) =>
+      assignmentService.markAsCompleted(assignmentId, notes),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
-        queryKey: queryKeys.assignmentSubmission(variables.assignmentId),
+        queryKey: queryKeys.assignmentSubmission(variables.assignmentId)
       });
       queryClient.invalidateQueries({
-        queryKey: queryKeys.assignmentOverview(variables.assignmentId),
+        queryKey: queryKeys.assignmentOverview(variables.assignmentId)
       });
-    },
+    }
   });
 };
 
@@ -323,37 +323,62 @@ export const useCreateGradeComponent = () => {
   return useMutation({
     mutationFn: ({
       courseId,
-      data,
+      data
     }: {
       courseId: string;
       data: {
         name: string;
-        type: "theory" | "lab" | "assignment" | "quiz" | "exam" | "project";
+        category: 'Lab' | 'Assignment' | 'Midterm' | 'Exam' | 'Project';
         weight: number;
+        minimumScore: number;
+        totalPoints: number;
+        isMandatory: boolean;
       };
     }) => courseService.createGradeComponent(courseId, data),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
-        queryKey: queryKeys.course(variables.courseId),
+        queryKey: queryKeys.course(variables.courseId)
       });
-    },
+    }
   });
 };
 
-export const useCreateGradeBand = () => {
+export const useUpdateGradeComponent = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({
       courseId,
-      data,
+      componentId,
+      data
     }: {
       courseId: string;
-      data: { minScore: number; maxScore: number; grade: number };
-    }) => courseService.createGradeBand(courseId, data),
+      componentId: string;
+      data: {
+        name: string;
+        category: 'Lab' | 'Assignment' | 'Midterm' | 'Exam' | 'Project';
+        weight: number;
+        minimumScore: number;
+        totalPoints: number;
+        isMandatory: boolean;
+      };
+    }) => courseService.updateGradeComponent(courseId, componentId, data),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
-        queryKey: queryKeys.course(variables.courseId),
+        queryKey: queryKeys.course(variables.courseId)
       });
-    },
+    }
+  });
+};
+
+export const useDeleteGradeComponent = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ courseId, componentId }: { courseId: string; componentId: string }) =>
+      courseService.deleteGradeComponent(courseId, componentId),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.course(variables.courseId)
+      });
+    }
   });
 };

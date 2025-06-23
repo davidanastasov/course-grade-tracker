@@ -175,4 +175,70 @@ export class CourseController {
   ): Promise<GradeBand> {
     return this.courseService.addGradeBand(courseId, bandData, user);
   }
+
+  @Put(':courseId/grade-components/:componentId')
+  @Roles(UserRole.PROFESSOR, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Update a grade component' })
+  @ApiResponse({
+    status: 200,
+    description: 'Grade component successfully updated',
+    type: GradeComponent
+  })
+  async updateGradeComponent(
+    @Param('courseId') courseId: string,
+    @Param('componentId') componentId: string,
+    @Body() componentData: CreateGradeComponentDto,
+    @GetUser() user: User
+  ): Promise<GradeComponent> {
+    return this.courseService.updateGradeComponent(courseId, componentId, componentData, user);
+  }
+
+  @Delete(':courseId/grade-components/:componentId')
+  @Roles(UserRole.PROFESSOR, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Delete a grade component' })
+  @ApiResponse({
+    status: 200,
+    description: 'Grade component successfully deleted'
+  })
+  async deleteGradeComponent(
+    @Param('courseId') courseId: string,
+    @Param('componentId') componentId: string,
+    @GetUser() user: User
+  ): Promise<{ message: string }> {
+    await this.courseService.deleteGradeComponent(courseId, componentId, user);
+    return { message: 'Grade component deleted successfully' };
+  }
+
+  @Put(':courseId/grade-bands/:bandId')
+  @Roles(UserRole.PROFESSOR, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Update a grade band' })
+  @ApiResponse({
+    status: 200,
+    description: 'Grade band successfully updated',
+    type: GradeBand
+  })
+  async updateGradeBand(
+    @Param('courseId') courseId: string,
+    @Param('bandId') bandId: string,
+    @Body() bandData: CreateGradeBandDto,
+    @GetUser() user: User
+  ): Promise<GradeBand> {
+    return this.courseService.updateGradeBand(courseId, bandId, bandData, user);
+  }
+
+  @Delete(':courseId/grade-bands/:bandId')
+  @Roles(UserRole.PROFESSOR, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Delete a grade band' })
+  @ApiResponse({
+    status: 200,
+    description: 'Grade band successfully deleted'
+  })
+  async deleteGradeBand(
+    @Param('courseId') courseId: string,
+    @Param('bandId') bandId: string,
+    @GetUser() user: User
+  ): Promise<{ message: string }> {
+    await this.courseService.deleteGradeBand(courseId, bandId, user);
+    return { message: 'Grade band deleted successfully' };
+  }
 }

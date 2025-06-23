@@ -12,11 +12,8 @@ export class GradeBand {
   @Column({ type: 'decimal', precision: 5, scale: 2 })
   maxScore: number; // Maximum score for this grade
 
-  @Column({ type: 'decimal', precision: 3, scale: 1 })
-  gradeValue: number; // Grade value (e.g., 6.0, 7.0, 8.0)
-
-  @Column()
-  gradeLetter: string; // Grade letter (e.g., 'F', 'D', 'C', 'B', 'A')
+  @Column({ type: 'int' })
+  gradeValue: number; // Grade value (e.g., 6, 7, 8, 9, 10)
 
   @ManyToOne(() => Course, (course) => course.gradeBands, {
     onDelete: 'CASCADE'

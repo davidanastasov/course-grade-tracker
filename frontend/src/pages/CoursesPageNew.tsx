@@ -1,39 +1,26 @@
-import React, { useState } from "react";
-import { Link } from "react-router-dom";
-import { Button } from "../components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "../components/ui/card";
-import { Badge } from "../components/ui/badge";
-import { Input } from "../components/ui/input";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "../components/ui/tabs";
-import { useAuth } from "../contexts/AuthContext";
-import {
-  useCourses,
-  useMyCourses,
-  useEnrollInCourse,
-} from "../hooks/useQueries";
-import { Plus, Search, Users, BookOpen, GraduationCap } from "lucide-react";
-import type { Course } from "../types/api";
+import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Button } from '../components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { Badge } from '../components/ui/badge';
+import { Input } from '../components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
+import { useAuth } from '../contexts/AuthContext';
+import { toast } from 'sonner';
+import { useCourses, useMyCourses, useEnrollInCourse } from '../hooks/useQueries';
+import { Plus, Search, Users, BookOpen, GraduationCap } from 'lucide-react';
+import type { Course } from '../types/api';
 
 const CoursesPage: React.FC = () => {
   const { user } = useAuth();
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const isProfessor = user?.role === 'professor';
+  const [activeTab, setActiveTab] = useState(isProfessor ? 'my-courses' : 'enrolled');
 
   const { data: allCourses = [], isLoading: allCoursesLoading } = useCourses();
   const { data: myCourses = [], isLoading: myCoursesLoading } = useMyCourses();
   const enrollMutation = useEnrollInCourse();
-
-  const isProfessor = user?.role === "professor";
 
   // Filter courses based on search term
   const filteredAllCourses = allCourses.filter(
@@ -53,15 +40,39 @@ const CoursesPage: React.FC = () => {
   const enrolledCourseIds = new Set(myCourses.map((course) => course.id));
   const availableCourses = filteredAllCourses.filter(
     (course) =>
-      !enrolledCourseIds.has(course.id) &&
-      (!isProfessor || course.professor.id !== user?.id)
+      !enrolledCourseIds.has(course.id) && (!isProfessor || course.professor.id !== user?.id)
   );
 
   const handleEnroll = async (courseId: string) => {
     try {
       await enrollMutation.mutateAsync(courseId);
-    } catch (error) {
-      console.error("Failed to enroll in course:", error);
+      // Switch to "My Courses" tab after successful enrollment
+      setActiveTab(isProfessor ? 'my-courses' : 'enrolled');
+    } catch (error: unknown) {
+      console.error('Failed to enroll in course:', error);
+
+      // Check if it's a 409 conflict error for previously removed students
+      const errorObj = error as {
+        response?: { status?: number; data?: { message?: string } };
+        status?: number;
+        data?: { message?: string };
+        message?: string;
+      };
+
+      const errorData = errorObj?.response?.data || errorObj?.data || errorObj;
+      const errorMessage = errorData?.message || errorObj?.message || '';
+
+      // Check for previously removed message regardless of status code
+      if (errorMessage.includes('previously removed')) {
+        toast.error('Cannot rejoin course', {
+          description:
+            'You were previously removed from this course by the instructor and cannot rejoin.'
+        });
+        return;
+      }
+
+      // Generic error handling for all other cases
+      alert('Failed to enroll in course. Please try again.');
     }
   };
 
@@ -82,12 +93,12 @@ const CoursesPage: React.FC = () => {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">
-              {isProfessor ? "Course Management" : "My Courses"}
+              {isProfessor ? 'Course Management' : 'My Courses'}
             </h1>
             <p className="mt-2 text-gray-600">
               {isProfessor
-                ? "Manage your courses, track student progress, and create assignments"
-                : "View your enrolled courses and discover new ones"}
+                ? 'Manage your courses, track student progress, and create assignments'
+                : 'View your enrolled courses and discover new ones'}
             </p>
           </div>
           {isProfessor && (
@@ -113,30 +124,20 @@ const CoursesPage: React.FC = () => {
           </div>
         </div>
 
-        <Tabs
-          defaultValue={isProfessor ? "my-courses" : "enrolled"}
-          className="w-full"
-        >
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value={isProfessor ? "my-courses" : "enrolled"}>
-              {isProfessor ? "My Courses" : "Enrolled Courses"}
+            <TabsTrigger value={isProfessor ? 'my-courses' : 'enrolled'}>
+              {isProfessor ? 'My Courses' : 'Enrolled Courses'}
             </TabsTrigger>
-            <TabsTrigger value={isProfessor ? "all-courses" : "available"}>
-              {isProfessor ? "All Courses" : "Available Courses"}
+            <TabsTrigger value={isProfessor ? 'all-courses' : 'available'}>
+              {isProfessor ? 'All Courses' : 'Available Courses'}
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent
-            value={isProfessor ? "my-courses" : "enrolled"}
-            className="mt-6"
-          >
+          <TabsContent value={isProfessor ? 'my-courses' : 'enrolled'} className="mt-6">
             <CourseGrid
               courses={filteredMyCourses}
-              title={
-                isProfessor
-                  ? "Courses You're Teaching"
-                  : "Your Enrolled Courses"
-              }
+              title={isProfessor ? "Courses You're Teaching" : 'Your Enrolled Courses'}
               emptyMessage={
                 isProfessor
                   ? "You haven't created any courses yet. Create your first course to get started."
@@ -147,19 +148,14 @@ const CoursesPage: React.FC = () => {
             />
           </TabsContent>
 
-          <TabsContent
-            value={isProfessor ? "all-courses" : "available"}
-            className="mt-6"
-          >
+          <TabsContent value={isProfessor ? 'all-courses' : 'available'} className="mt-6">
             <CourseGrid
               courses={isProfessor ? filteredAllCourses : availableCourses}
-              title={
-                isProfessor ? "All Courses in System" : "Available Courses"
-              }
+              title={isProfessor ? 'All Courses in System' : 'Available Courses'}
               emptyMessage={
                 isProfessor
-                  ? "No courses found in the system."
-                  : "No available courses to enroll in."
+                  ? 'No courses found in the system.'
+                  : 'No available courses to enroll in.'
               }
               isProfessor={isProfessor}
               showEnrollButton={!isProfessor}
@@ -190,7 +186,7 @@ const CourseGrid: React.FC<CourseGridProps> = ({
   isProfessor,
   showEnrollButton,
   onEnroll,
-  enrollLoading,
+  enrollLoading
 }) => {
   return (
     <div>
@@ -200,9 +196,7 @@ const CourseGrid: React.FC<CourseGridProps> = ({
         <Card>
           <CardContent className="text-center py-12">
             <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              No courses found
-            </h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No courses found</h3>
             <p className="text-gray-600 mb-4">{emptyMessage}</p>
             {isProfessor && (
               <Button asChild>
@@ -242,7 +236,7 @@ const CourseCard: React.FC<CourseCardProps> = ({
   isProfessor,
   showEnrollButton,
   onEnroll,
-  enrollLoading,
+  enrollLoading
 }) => {
   return (
     <Card className="hover:shadow-lg transition-shadow duration-200">
@@ -257,9 +251,7 @@ const CourseCard: React.FC<CourseCardProps> = ({
           <Badge variant="secondary">{course.credits || 3} credits</Badge>
         </div>
         {course.description && (
-          <p className="text-sm text-gray-600 mt-2 line-clamp-2">
-            {course.description}
-          </p>
+          <p className="text-sm text-gray-600 mt-2 line-clamp-2">{course.description}</p>
         )}
       </CardHeader>
       <CardContent>
@@ -277,12 +269,8 @@ const CourseCard: React.FC<CourseCardProps> = ({
           </div>
 
           <div className="flex flex-wrap gap-2 mt-3">
-            <Badge variant="outline">
-              {course.gradeComponents?.length || 0} components
-            </Badge>
-            <Badge variant="outline">
-              {course.assignmentCount || 0} assignments
-            </Badge>
+            <Badge variant="outline">{course.gradeComponents?.length || 0} components</Badge>
+            <Badge variant="outline">{course.assignmentCount || 0} assignments</Badge>
           </div>
 
           <div className="flex gap-2 mt-4">
@@ -297,7 +285,7 @@ const CourseCard: React.FC<CourseCardProps> = ({
                 size="sm"
                 className="flex-1"
               >
-                {enrollLoading ? "Enrolling..." : "Enroll"}
+                {enrollLoading ? 'Enrolling...' : 'Enroll'}
               </Button>
             )}
 

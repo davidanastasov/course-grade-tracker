@@ -77,9 +77,15 @@ const AssignmentDetailPage: React.FC = () => {
 
     setIsSubmitting(true);
     try {
+      // First upload file if provided
+      if (submissionFile) {
+        await assignmentService.uploadFile(id, submissionFile);
+      }
+
+      // Then create the submission
       const submissionData = await assignmentService.submitAssignment(id, {
         notes: submissionNotes,
-        file: submissionFile || undefined,
+        status: "SUBMITTED",
       });
       setSubmission(submissionData);
       setSubmissionNotes("");
@@ -200,7 +206,7 @@ const AssignmentDetailPage: React.FC = () => {
   const canEdit = isProfessor; // Could add more logic for ownership checking
 
   return (
-    <div className="container mx-auto px-4 py-6">
+    <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="flex justify-between items-start mb-8">
         <div>
           <div className="flex items-center gap-3 mb-2">
@@ -326,8 +332,7 @@ const AssignmentDetailPage: React.FC = () => {
                       <div className="flex-1">
                         <p className="font-medium">{file.originalName}</p>
                         <p className="text-sm text-gray-600">
-                          {(file.size / 1024).toFixed(1)} KB •
-                          Uploaded on{" "}
+                          {(file.size / 1024).toFixed(1)} KB • Uploaded on{" "}
                           {new Date(file.uploadedAt).toLocaleDateString()}
                         </p>
                       </div>
@@ -398,12 +403,6 @@ const AssignmentDetailPage: React.FC = () => {
               >
                 Publish Assignment
               </Button>
-              <Button
-                onClick={() => assignmentService.markAsCompleted(assignment.id)}
-                variant="outline"
-              >
-                Mark as Completed
-              </Button>
             </div>
           </CardContent>
         </Card>
@@ -428,16 +427,39 @@ const AssignmentDetailPage: React.FC = () => {
                 <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="font-medium text-green-900">Submitted</p>
+                      <p className="font-medium text-green-900">
+                        {submission.status === "COMPLETED"
+                          ? "Completed"
+                          : "Submitted"}
+                      </p>
                       <p className="text-sm text-green-700">
-                        {new Date(submission.submittedAt).toLocaleDateString()}{" "}
-                        at{" "}
-                        {new Date(submission.submittedAt).toLocaleTimeString()}
+                        {submission.submittedAt &&
+                          new Date(
+                            submission.submittedAt
+                          ).toLocaleDateString()}{" "}
+                        {submission.submittedAt && "at"}{" "}
+                        {submission.submittedAt &&
+                          new Date(submission.submittedAt).toLocaleTimeString()}
+                        {submission.isLate && " (Late)"}
                       </p>
                     </div>
-                    <Badge variant="default" className="bg-green-600">
-                      ✓ Submitted
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      {submission.isLate && (
+                        <Badge variant="destructive">Late</Badge>
+                      )}
+                      <Badge
+                        variant="default"
+                        className={
+                          submission.status === "COMPLETED"
+                            ? "bg-blue-600"
+                            : "bg-green-600"
+                        }
+                      >
+                        {submission.status === "COMPLETED"
+                          ? "✓ Completed"
+                          : "✓ Submitted"}
+                      </Badge>
+                    </div>
                   </div>
                 </div>
 
@@ -450,49 +472,34 @@ const AssignmentDetailPage: React.FC = () => {
                   </div>
                 )}
 
-                {submission.fileId && (
-                  <div>
-                    <h4 className="font-medium text-gray-900 mb-2">
-                      Submitted File
-                    </h4>
-                    <div className="border rounded-lg p-4">
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm text-gray-600">
-                          File submitted with assignment
-                        </p>
-                        <Button
-                          onClick={async () => {
-                            try {
-                              const blob = await assignmentService.downloadFile(
-                                submission.fileId!
-                              );
-                              const url = URL.createObjectURL(blob);
-                              const a = document.createElement("a");
-                              a.href = url;
-                              a.download = `submission-${
-                                assignment?.title || "file"
-                              }`;
-                              document.body.appendChild(a);
-                              a.click();
-                              URL.revokeObjectURL(url);
-                              document.body.removeChild(a);
-                            } catch (error) {
-                              console.error("Failed to download file:", error);
-                            }
-                          }}
-                          variant="outline"
-                          size="sm"
-                        >
-                          Download
-                        </Button>
-                      </div>
-                    </div>
+                {submission.status !== "COMPLETED" && (
+                  <div className="pt-4 border-t">
+                    <Button
+                      onClick={async () => {
+                        try {
+                          const updatedSubmission =
+                            await assignmentService.markAsCompleted(
+                              assignment.id
+                            );
+                          setSubmission(updatedSubmission);
+                        } catch (error) {
+                          console.error("Failed to mark as completed:", error);
+                          alert(
+                            "Failed to mark assignment as completed. Please try again."
+                          );
+                        }
+                      }}
+                      variant="outline"
+                      className="w-full"
+                    >
+                      Mark as Completed
+                    </Button>
                   </div>
                 )}
 
                 <div className="pt-4 border-t">
                   <p className="text-sm text-gray-600">
-                    To update your submission, submit again with new content.
+                    To update your submission, contact your professor.
                   </p>
                 </div>
               </div>

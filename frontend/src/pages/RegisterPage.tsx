@@ -1,37 +1,31 @@
-import React, { useState } from "react";
-import { Link, Navigate } from "react-router-dom";
-import { Button } from "../components/ui/button";
-import { Input } from "../components/ui/input";
-import { Label } from "../components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "../components/ui/card";
+import React, { useState } from 'react';
+import { Link, Navigate } from 'react-router-dom';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
-} from "../components/ui/select";
-import { useAuth } from "../contexts/AuthContext";
-import { authService } from "../services/authService";
+  SelectValue
+} from '../components/ui/select';
+import { useAuth } from '../contexts/AuthContext';
+import { authService } from '../services/authService';
 
 const RegisterPage: React.FC = () => {
   const { isAuthenticated } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [formData, setFormData] = useState({
-    username: "",
-    email: "",
-    password: "",
-    firstName: "",
-    lastName: "",
-    role: "" as "student" | "professor" | "",
+    username: '',
+    email: '',
+    password: '',
+    firstName: '',
+    lastName: '',
+    role: '' as 'student' | 'professor' | ''
   });
 
   if (isAuthenticated) {
@@ -41,10 +35,10 @@ const RegisterPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setError("");
+    setError('');
 
     if (!formData.role) {
-      setError("Please select a role");
+      setError('Please select a role');
       setIsLoading(false);
       return;
     }
@@ -52,11 +46,11 @@ const RegisterPage: React.FC = () => {
     try {
       await authService.register({
         ...formData,
-        role: formData.role as "student" | "professor",
+        role: formData.role as 'student' | 'professor'
       });
       setSuccess(true);
     } catch (error) {
-      setError(error instanceof Error ? error.message : "Registration failed");
+      setError(error instanceof Error ? error.message : 'Registration failed');
     } finally {
       setIsLoading(false);
     }
@@ -65,14 +59,14 @@ const RegisterPage: React.FC = () => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData((prev) => ({
       ...prev,
-      [e.target.name]: e.target.value,
+      [e.target.name]: e.target.value
     }));
   };
 
   const handleRoleChange = (value: string) => {
     setFormData((prev) => ({
       ...prev,
-      role: value as "student" | "professor",
+      role: value as 'student' | 'professor'
     }));
   };
 
@@ -167,6 +161,7 @@ const RegisterPage: React.FC = () => {
                 id="password"
                 name="password"
                 type="password"
+                autoComplete="off"
                 required
                 value={formData.password}
                 onChange={handleChange}
@@ -185,15 +180,13 @@ const RegisterPage: React.FC = () => {
                 </SelectContent>
               </Select>
             </div>
-            {error && (
-              <div className="text-sm text-red-600 text-center">{error}</div>
-            )}
+            {error && <div className="text-sm text-red-600 text-center">{error}</div>}
             <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Creating account..." : "Create account"}
+              {isLoading ? 'Creating account...' : 'Create account'}
             </Button>
           </form>
           <div className="mt-4 text-center text-sm">
-            Already have an account?{" "}
+            Already have an account?{' '}
             <Link to="/login" className="text-blue-600 hover:text-blue-500">
               Sign in
             </Link>

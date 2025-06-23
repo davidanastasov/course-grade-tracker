@@ -72,6 +72,21 @@ export class CourseService {
     return this.findById(savedCourse.id);
   }
 
+  private transformCourseResponse(course: Course): Course {
+    // Transform gradeComponents to ensure 'category' field is used
+    if (course.gradeComponents) {
+      course.gradeComponents = course.gradeComponents.map((component) => ({
+        ...component,
+        category: component.category // Ensure category is properly mapped
+      }));
+    }
+    return course;
+  }
+
+  private transformCoursesResponse(courses: Course[]): Course[] {
+    return courses.map((course) => this.transformCourseResponse(course));
+  }
+
   async findAll(): Promise<Course[]> {
     const courses = await this.courseRepository
       .createQueryBuilder('course')
@@ -85,7 +100,7 @@ export class CourseService {
       .where('course.isActive = :isActive', { isActive: true })
       .getMany();
 
-    return courses;
+    return this.transformCoursesResponse(courses);
   }
 
   async findById(id: string): Promise<Course> {
@@ -102,6 +117,21 @@ export class CourseService {
 
     if (!course) {
       throw new NotFoundException('Course not found');
+    }
+
+    // Filter enrollments to only show active ones
+    if (course.enrollments) {
+      course.enrollments = course.enrollments.filter(
+        (enrollment) => enrollment.status === EnrollmentStatus.ACTIVE
+      );
+    }
+
+    // Transform gradeComponents to ensure 'category' field is used
+    if (course.gradeComponents) {
+      course.gradeComponents = course.gradeComponents.map((component) => ({
+        ...component,
+        category: component.category // Ensure category is properly mapped
+      }));
     }
 
     return course;
@@ -121,7 +151,7 @@ export class CourseService {
       .andWhere('course.isActive = :isActive', { isActive: true })
       .getMany();
 
-    return courses;
+    return this.transformCoursesResponse(courses);
   }
 
   async findEnrolledCourses(studentId: string): Promise<Course[]> {
@@ -142,7 +172,7 @@ export class CourseService {
       .andWhere('course.isActive = :isActive', { isActive: true })
       .getMany();
 
-    return courses;
+    return this.transformCoursesResponse(courses);
   }
 
   async updateCourse(id: string, updateCourseDto: UpdateCourseDto, user: User): Promise<Course> {
@@ -236,31 +266,15 @@ export class CourseService {
       throw new Error('Either grade or gradeValue must be provided');
     }
 
-    // Auto-generate gradeLetter if not provided
-    let gradeLetter = bandData.gradeLetter;
-    if (!gradeLetter) {
-      gradeLetter = this.generateGradeLetter(gradeValue);
-    }
-
     const gradeBand = this.gradeBandRepository.create({
       minScore: bandData.minScore,
       maxScore: bandData.maxScore,
       gradeValue,
-      gradeLetter,
       course
     });
 
     const savedBand = await this.gradeBandRepository.save(gradeBand);
     return Array.isArray(savedBand) ? savedBand[0] : savedBand;
-  }
-
-  private generateGradeLetter(gradeValue: number): string {
-    if (gradeValue >= 9) return 'A';
-    if (gradeValue >= 8) return 'B';
-    if (gradeValue >= 7) return 'C';
-    if (gradeValue >= 6) return 'D';
-    if (gradeValue >= 5) return 'E';
-    return 'F';
   }
 
   async calculateProjectedGrade(courseId: string, studentId: string): Promise<any> {
@@ -281,7 +295,7 @@ export class CourseService {
       components: course.gradeComponents.map((component) => ({
         id: component.id,
         name: component.name,
-        type: component.type,
+        category: component.category,
         weight: component.weight,
         currentScore: 0, // Would be calculated from actual grades
         projectedScore: 0 // Would be calculated based on remaining assignments
@@ -313,5 +327,87 @@ export class CourseService {
     return course.enrollments
       .filter((enrollment) => enrollment.status === EnrollmentStatus.ACTIVE)
       .map((enrollment) => enrollment.student);
+  }
+
+  // Grade Component CRUD operations
+  async updateGradeComponent(
+    courseId: string,
+    componentId: string,
+    componentData: CreateGradeComponentDto,
+    user: User
+  ): Promise<GradeComponent> {
+    const component = await this.gradeComponentRepository.findOne({
+      where: { id: componentId, course: { id: courseId } },
+      relations: ['course', 'course.professor']
+    });
+
+    if (!component) {
+      throw new NotFoundException('Grade component not found');
+    }
+
+    if (user.role !== UserRole.ADMIN && component.course.professor.id !== user.id) {
+      throw new ForbiddenException('You can only update grade components for your own courses');
+    }
+
+    Object.assign(component, componentData);
+    return this.gradeComponentRepository.save(component);
+  }
+
+  async deleteGradeComponent(courseId: string, componentId: string, user: User): Promise<void> {
+    const component = await this.gradeComponentRepository.findOne({
+      where: { id: componentId, course: { id: courseId } },
+      relations: ['course', 'course.professor']
+    });
+
+    if (!component) {
+      throw new NotFoundException('Grade component not found');
+    }
+
+    if (user.role !== UserRole.ADMIN && component.course.professor.id !== user.id) {
+      throw new ForbiddenException('You can only delete grade components for your own courses');
+    }
+
+    await this.gradeComponentRepository.remove(component);
+  }
+
+  // Grade Band CRUD operations
+  async updateGradeBand(
+    courseId: string,
+    bandId: string,
+    bandData: CreateGradeBandDto,
+    user: User
+  ): Promise<GradeBand> {
+    const band = await this.gradeBandRepository.findOne({
+      where: { id: bandId, course: { id: courseId } },
+      relations: ['course', 'course.professor']
+    });
+
+    if (!band) {
+      throw new NotFoundException('Grade band not found');
+    }
+
+    if (user.role !== UserRole.ADMIN && band.course.professor.id !== user.id) {
+      throw new ForbiddenException('You can only update grade bands for your own courses');
+    }
+
+    Object.assign(band, bandData);
+    return this.gradeBandRepository.save(band);
+  }
+
+  async deleteGradeBand(courseId: string, bandId: string, user: User): Promise<void> {
+    const band = await this.gradeBandRepository.findOne({
+      where: { id: bandId, course: { id: courseId } },
+      relations: ['course', 'course.professor']
+    });
+
+    if (!band) {
+      throw new NotFoundException('Grade band not found');
+    }
+
+    if (user.role !== UserRole.ADMIN && band.course.professor.id !== user.id) {
+      throw new ForbiddenException('You can only delete grade bands for your own courses');
+    }
+
+    await this.gradeBandRepository.remove(band);
   }
 }

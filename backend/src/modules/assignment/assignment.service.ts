@@ -10,7 +10,7 @@ import { Assignment, AssignmentStatus } from './entities/assignment.entity';
 import { AssignmentFile } from './entities/assignment-file.entity';
 import { Course } from '../course/entities/course.entity';
 import { User, UserRole } from '../user/entities/user.entity';
-import { EnrollmentStatus } from '../user/entities/enrollment.entity';
+import { Enrollment, EnrollmentStatus } from '../user/entities/enrollment.entity';
 import {
   CreateAssignmentDto,
   UpdateAssignmentDto,
@@ -26,7 +26,9 @@ export class AssignmentService {
     @InjectRepository(AssignmentFile)
     private assignmentFileRepository: Repository<AssignmentFile>,
     @InjectRepository(Course)
-    private courseRepository: Repository<Course>
+    private courseRepository: Repository<Course>,
+    @InjectRepository(Enrollment)
+    private enrollmentRepository: Repository<Enrollment>
   ) {}
 
   async createAssignment(
@@ -78,19 +80,32 @@ export class AssignmentService {
       });
     } else {
       // Students can only see assignments from courses they're enrolled in
-      assignments = await this.assignmentRepository
-        .createQueryBuilder('assignment')
-        .leftJoinAndSelect('assignment.course', 'course')
-        .leftJoinAndSelect('assignment.createdBy', 'createdBy')
-        .leftJoinAndSelect('assignment.files', 'files')
-        .leftJoinAndSelect('course.enrollments', 'enrollments')
-        .where('enrollments.student.id = :studentId', { studentId: user.id })
-        .andWhere('enrollments.status = :status', { status: EnrollmentStatus.ACTIVE })
-        .andWhere('assignment.status = :assignmentStatus', {
-          assignmentStatus: AssignmentStatus.PUBLISHED
-        })
-        .orderBy('assignment.dueDate', 'ASC')
-        .getMany();
+      // First get the student's active enrollments
+      const enrollments = await this.enrollmentRepository.find({
+        where: {
+          student: { id: user.id },
+          status: EnrollmentStatus.ACTIVE
+        },
+        relations: ['course']
+      });
+
+      const courseIds = enrollments.map((enrollment) => enrollment.course.id);
+
+      if (courseIds.length === 0) {
+        assignments = [];
+      } else {
+        assignments = await this.assignmentRepository
+          .createQueryBuilder('assignment')
+          .leftJoinAndSelect('assignment.course', 'course')
+          .leftJoinAndSelect('assignment.createdBy', 'createdBy')
+          .leftJoinAndSelect('assignment.files', 'files')
+          .where('assignment.course.id IN (:...courseIds)', { courseIds })
+          .andWhere('assignment.status = :assignmentStatus', {
+            assignmentStatus: AssignmentStatus.PUBLISHED
+          })
+          .orderBy('assignment.dueDate', 'ASC')
+          .getMany();
+      }
     }
 
     return assignments.map(this.mapToResponseDto);
@@ -142,7 +157,7 @@ export class AssignmentService {
     // First verify the user has access to this course
     const course = await this.courseRepository.findOne({
       where: { id: courseId },
-      relations: ['professor', 'enrollments', 'enrollments.student']
+      relations: ['professor']
     });
 
     if (!course) {
@@ -156,10 +171,15 @@ export class AssignmentService {
     } else if (user.role === UserRole.PROFESSOR) {
       hasAccess = course.professor.id === user.id;
     } else if (user.role === UserRole.STUDENT) {
-      hasAccess = course.enrollments.some(
-        (enrollment) =>
-          enrollment.student.id === user.id && enrollment.status === EnrollmentStatus.ACTIVE
-      );
+      // Check if student is actively enrolled
+      const enrollment = await this.enrollmentRepository.findOne({
+        where: {
+          student: { id: user.id },
+          course: { id: courseId },
+          status: EnrollmentStatus.ACTIVE
+        }
+      });
+      hasAccess = !!enrollment;
     }
 
     if (!hasAccess) {
@@ -308,24 +328,6 @@ export class AssignmentService {
     }
 
     assignment.status = AssignmentStatus.PUBLISHED;
-    return this.assignmentRepository.save(assignment);
-  }
-
-  async markAsCompleted(id: string, user: User): Promise<Assignment> {
-    const assignment = await this.assignmentRepository.findOne({
-      where: { id },
-      relations: ['createdBy']
-    });
-
-    if (!assignment) {
-      throw new NotFoundException('Assignment not found');
-    }
-
-    if (assignment.createdBy.id !== user.id && user.role !== UserRole.ADMIN) {
-      throw new ForbiddenException('You can only mark your own assignments as completed');
-    }
-
-    assignment.status = AssignmentStatus.COMPLETED;
     return this.assignmentRepository.save(assignment);
   }
 

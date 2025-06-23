@@ -1,29 +1,23 @@
-import React, { useState } from "react";
-import { Link, Navigate, useLocation } from "react-router-dom";
-import { Button } from "../components/ui/button";
-import { Input } from "../components/ui/input";
-import { Label } from "../components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "../components/ui/card";
-import { useAuth } from "../contexts/AuthContext";
-import { authService } from "../services/authService";
+import React, { useState } from 'react';
+import { Link, Navigate, useLocation } from 'react-router-dom';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { useAuth } from '../contexts/AuthContext';
+import { authService } from '../services/authService';
 
 const LoginPage: React.FC = () => {
   const { login, isAuthenticated } = useAuth();
   const location = useLocation();
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
   const [formData, setFormData] = useState({
-    username: "",
-    password: "",
+    username: '',
+    password: ''
   });
 
-  const from = location.state?.from?.pathname || "/dashboard";
+  const from = location.state?.from?.pathname || '/dashboard';
 
   if (isAuthenticated) {
     return <Navigate to={from} replace />;
@@ -32,13 +26,13 @@ const LoginPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setError("");
+    setError('');
 
     try {
       const response = await authService.login(formData);
       login(response.access_token, response.user);
     } catch (error) {
-      setError(error instanceof Error ? error.message : "Login failed");
+      setError(error instanceof Error ? error.message : 'Login failed');
     } finally {
       setIsLoading(false);
     }
@@ -47,7 +41,7 @@ const LoginPage: React.FC = () => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData((prev) => ({
       ...prev,
-      [e.target.name]: e.target.value,
+      [e.target.name]: e.target.value
     }));
   };
 
@@ -80,21 +74,20 @@ const LoginPage: React.FC = () => {
                 id="password"
                 name="password"
                 type="password"
+                autoComplete="off"
                 required
                 value={formData.password}
                 onChange={handleChange}
                 placeholder="Enter your password"
               />
             </div>
-            {error && (
-              <div className="text-sm text-red-600 text-center">{error}</div>
-            )}
+            {error && <div className="text-sm text-red-600 text-center">{error}</div>}
             <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Signing in..." : "Sign in"}
+              {isLoading ? 'Signing in...' : 'Sign in'}
             </Button>
           </form>
           <div className="mt-4 text-center text-sm">
-            Don't have an account?{" "}
+            Don't have an account?{' '}
             <Link to="/register" className="text-blue-600 hover:text-blue-500">
               Sign up
             </Link>

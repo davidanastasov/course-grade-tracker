@@ -1,5 +1,5 @@
-import { apiClient } from "../lib/api";
-import type { Grade, CreateGradeRequest } from "../types/api";
+import { apiClient } from '../lib/api';
+import type { Grade, CreateGradeRequest } from '../types/api';
 
 export interface GradeSubmission {
   score: number;
@@ -19,26 +19,22 @@ export interface GradeConfirmation {
 export const gradeService = {
   // Student grade management
   async createGrade(gradeData: CreateGradeRequest): Promise<Grade> {
-    return apiClient.post<Grade>("/grades", gradeData);
+    return apiClient.post<Grade>('/grades', gradeData);
   },
 
   async getGrades(studentId?: string, courseId?: string): Promise<Grade[]> {
     if (studentId && courseId) {
-      return apiClient.get<Grade[]>(
-        `/grades/course/${courseId}?studentId=${studentId}`
-      );
+      return apiClient.get<Grade[]>(`/grades/course/${courseId}?studentId=${studentId}`);
     } else if (studentId) {
       return apiClient.get<Grade[]>(`/grades/student/${studentId}`);
     } else if (courseId) {
       return apiClient.get<Grade[]>(`/grades/course/${courseId}`);
     }
-    return apiClient.get<Grade[]>("/grades");
+    return apiClient.get<Grade[]>('/grades');
   },
 
   async getMyGrades(courseId?: string): Promise<Grade[]> {
-    const endpoint = courseId
-      ? `/grades/my?courseId=${courseId}`
-      : "/grades/my";
+    const endpoint = courseId ? `/grades/my?courseId=${courseId}` : '/grades/my';
     return apiClient.get<Grade[]>(endpoint);
   },
 
@@ -48,13 +44,10 @@ export const gradeService = {
 
   // Student self-reporting grades
   async submitGrade(gradeData: GradeSubmission): Promise<Grade> {
-    return apiClient.post<Grade>("/grades", gradeData);
+    return apiClient.post<Grade>('/grades', gradeData);
   },
 
-  async updateGrade(
-    id: string,
-    gradeData: Partial<CreateGradeRequest>
-  ): Promise<Grade> {
+  async updateGrade(id: string, gradeData: Partial<CreateGradeRequest>): Promise<Grade> {
     return apiClient.put<Grade>(`/grades/${id}`, gradeData);
   },
 
@@ -63,15 +56,11 @@ export const gradeService = {
   },
 
   // Grade component submissions
-  async submitComponentGrade(
-    courseId: string,
-    componentId: string,
-    score: number
-  ): Promise<Grade> {
-    return apiClient.post<Grade>("/grades/component", {
+  async submitComponentGrade(courseId: string, componentId: string, score: number): Promise<Grade> {
+    return apiClient.post<Grade>('/grades/component', {
       courseId,
       gradeComponentId: componentId,
-      score,
+      score
     });
   },
 
@@ -87,15 +76,11 @@ export const gradeService = {
   },
 
   // Assignment grade submissions
-  async submitAssignmentGrade(
-    assignmentId: string,
-    score: number,
-    notes?: string
-  ): Promise<Grade> {
-    return apiClient.post<Grade>("/grades/assignment", {
+  async submitAssignmentGrade(assignmentId: string, score: number, notes?: string): Promise<Grade> {
+    return apiClient.post<Grade>('/grades/assignment', {
       assignmentId,
       score,
-      notes,
+      notes
     });
   },
 
@@ -135,12 +120,12 @@ export const gradeService = {
     finalGrade: number,
     notes?: string
   ): Promise<GradeConfirmation> {
-    return apiClient.post<GradeConfirmation>("/grades/confirm", {
+    return apiClient.post<GradeConfirmation>('/grades/confirm', {
       studentId,
       courseId,
       finalGrade,
       notes,
-      confirmed: true,
+      confirmed: true
     });
   },
 
@@ -152,10 +137,7 @@ export const gradeService = {
     confirmationId: string,
     data: Partial<GradeConfirmation>
   ): Promise<GradeConfirmation> {
-    return apiClient.put<GradeConfirmation>(
-      `/grades/confirm/${confirmationId}`,
-      data
-    );
+    return apiClient.put<GradeConfirmation>(`/grades/confirm/${confirmationId}`, data);
   },
 
   // Batch operations for professors
@@ -176,5 +158,5 @@ export const gradeService = {
     }>
   > {
     return apiClient.get(`/grades/summary/${courseId}`);
-  },
+  }
 };

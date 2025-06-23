@@ -1,4 +1,4 @@
-import { apiClient } from "../lib/api";
+import { apiClient } from '../lib/api';
 import type {
   Course,
   CreateCourseRequest,
@@ -7,21 +7,46 @@ import type {
   GradeComponent,
   GradeBand,
   Enrollment,
-  User,
-} from "../types/api";
+  User
+} from '../types/api';
+
+// Helper function to map legacy 'type' field to 'category'
+const mapGradeComponentType = (component: any): GradeComponent => {
+  if (component.type && !component.category) {
+    // Map legacy type values to category values
+    const typeMapping: Record<string, 'Lab' | 'Assignment' | 'Midterm' | 'Exam' | 'Project'> = {
+      lab: 'Lab',
+      assignment: 'Assignment',
+      quiz: 'Midterm', // Quiz maps to Midterm
+      exam: 'Exam',
+      project: 'Project'
+    };
+
+    component.category = typeMapping[component.type] || 'Assignment';
+  }
+  return component;
+};
+
+// Helper function to transform course data
+const transformCourseData = (course: any): Course => {
+  if (course.gradeComponents) {
+    course.gradeComponents = course.gradeComponents.map(mapGradeComponentType);
+  }
+  return course;
+};
 
 export const courseService = {
   // Course management
   async getCourses(): Promise<Course[]> {
-    return apiClient.get<Course[]>("/courses");
+    return apiClient.get<Course[]>('/courses');
   },
 
   async getMyCourses(): Promise<Course[]> {
-    return apiClient.get<Course[]>("/courses/my");
+    return apiClient.get<Course[]>('/courses/my');
   },
 
   async getEnrolledCourses(): Promise<Course[]> {
-    return apiClient.get<Course[]>("/courses/enrolled");
+    return apiClient.get<Course[]>('/courses/enrolled');
   },
 
   async getCourse(id: string): Promise<Course> {
@@ -29,13 +54,10 @@ export const courseService = {
   },
 
   async createCourse(courseData: CreateCourseRequest): Promise<Course> {
-    return apiClient.post<Course>("/courses", courseData);
+    return apiClient.post<Course>('/courses', courseData);
   },
 
-  async updateCourse(
-    id: string,
-    courseData: Partial<CreateCourseRequest>
-  ): Promise<Course> {
+  async updateCourse(id: string, courseData: Partial<CreateCourseRequest>): Promise<Course> {
     return apiClient.put<Course>(`/courses/${id}`, courseData);
   },
 
@@ -44,31 +66,22 @@ export const courseService = {
   },
 
   // File management
-  async uploadFile(
-    courseId: string,
-    file: File
-  ): Promise<{ filePath: string }> {
-    return apiClient.uploadFile<{ filePath: string }>(
-      `/courses/${courseId}/upload`,
-      file
-    );
+  async uploadFile(courseId: string, file: File): Promise<{ filePath: string }> {
+    return apiClient.uploadFile<{ filePath: string }>(`/courses/${courseId}/upload`, file);
   },
 
   // Grade components
   async createGradeComponent(
     courseId: string,
-    componentData: Omit<CreateGradeComponentRequest, "courseId">
+    componentData: Omit<CreateGradeComponentRequest, 'courseId'>
   ): Promise<GradeComponent> {
-    return apiClient.post<GradeComponent>(
-      `/courses/${courseId}/grade-components`,
-      componentData
-    );
+    return apiClient.post<GradeComponent>(`/courses/${courseId}/grade-components`, componentData);
   },
 
   async updateGradeComponent(
     courseId: string,
     componentId: string,
-    componentData: Partial<Omit<CreateGradeComponentRequest, "courseId">>
+    componentData: Partial<Omit<CreateGradeComponentRequest, 'courseId'>>
   ): Promise<GradeComponent> {
     return apiClient.put<GradeComponent>(
       `/courses/${courseId}/grade-components/${componentId}`,
@@ -76,35 +89,24 @@ export const courseService = {
     );
   },
 
-  async deleteGradeComponent(
-    courseId: string,
-    componentId: string
-  ): Promise<void> {
-    return apiClient.delete<void>(
-      `/courses/${courseId}/grade-components/${componentId}`
-    );
+  async deleteGradeComponent(courseId: string, componentId: string): Promise<void> {
+    return apiClient.delete<void>(`/courses/${courseId}/grade-components/${componentId}`);
   },
 
   // Grade bands
   async createGradeBand(
     courseId: string,
-    bandData: Omit<CreateGradeBandRequest, "courseId">
+    bandData: Omit<CreateGradeBandRequest, 'courseId'>
   ): Promise<GradeBand> {
-    return apiClient.post<GradeBand>(
-      `/courses/${courseId}/grade-bands`,
-      bandData
-    );
+    return apiClient.post<GradeBand>(`/courses/${courseId}/grade-bands`, bandData);
   },
 
   async updateGradeBand(
     courseId: string,
     bandId: string,
-    bandData: Partial<Omit<CreateGradeBandRequest, "courseId">>
+    bandData: Partial<Omit<CreateGradeBandRequest, 'courseId'>>
   ): Promise<GradeBand> {
-    return apiClient.put<GradeBand>(
-      `/courses/${courseId}/grade-bands/${bandId}`,
-      bandData
-    );
+    return apiClient.put<GradeBand>(`/courses/${courseId}/grade-bands/${bandId}`, bandData);
   },
 
   async deleteGradeBand(courseId: string, bandId: string): Promise<void> {
@@ -131,8 +133,8 @@ export const courseService = {
 
   // Enrollment management
   async enrollInCourse(courseId: string): Promise<{ message: string }> {
-    return apiClient.post<{ message: string }>("/users/enroll/self", {
-      courseId,
+    return apiClient.post<{ message: string }>('/users/enroll/self', {
+      courseId
     });
   },
 
@@ -144,7 +146,7 @@ export const courseService = {
     if (studentId) {
       return apiClient.get<Enrollment[]>(`/users/${studentId}/enrollments`);
     }
-    return apiClient.get<Enrollment[]>("/enrollments/my");
+    return apiClient.get<Enrollment[]>('/enrollments/my');
   },
 
   async getCourseEnrollments(courseId: string): Promise<Enrollment[]> {
@@ -171,5 +173,5 @@ export const courseService = {
       ? `/courses/${courseId}/eligibility/${studentId}`
       : `/courses/${courseId}/eligibility`;
     return apiClient.get(endpoint);
-  },
+  }
 };

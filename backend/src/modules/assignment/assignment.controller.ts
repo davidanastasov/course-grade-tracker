@@ -189,10 +189,4 @@ export class AssignmentController {
   async publishAssignment(@Param('id') id: string, @GetUser() user: User): Promise<Assignment> {
     return this.assignmentService.publishAssignment(id, user);
   }
-
-  @Patch(':id/complete')
-  @Roles(UserRole.PROFESSOR, UserRole.ADMIN)
-  async markAsCompleted(@Param('id') id: string, @GetUser() user: User): Promise<Assignment> {
-    return this.assignmentService.markAsCompleted(id, user);
-  }
 }

@@ -1,5 +1,12 @@
-import { Controller, Get, Put, Post, Body, Param, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { Controller, Get, Put, Post, Body, Param, UseGuards, Delete } from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiForbiddenResponse,
+  ApiNotFoundResponse
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -102,5 +109,31 @@ export class UserController {
   @Roles(UserRole.ADMIN, UserRole.PROFESSOR)
   async getStudentEnrollments(@Param('studentId') studentId: string): Promise<any[]> {
     return this.userService.getStudentEnrollments(studentId);
+  }
+
+  @Delete('enrollments/:studentId/:courseId')
+  @Roles(UserRole.ADMIN, UserRole.PROFESSOR)
+  @ApiOperation({ summary: 'Remove student from course' })
+  @ApiResponse({
+    status: 200,
+    description: 'Student successfully removed from course',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'Student removed from course successfully' }
+      }
+    }
+  })
+  @ApiForbiddenResponse({
+    description: 'Only admins and professors can remove students from courses'
+  })
+  @ApiNotFoundResponse({ description: 'Enrollment not found' })
+  async removeStudentFromCourse(
+    @Param('studentId') studentId: string,
+    @Param('courseId') courseId: string,
+    @GetUser() user: User
+  ): Promise<{ message: string }> {
+    await this.userService.dropEnrollment(studentId, courseId, user);
+    return { message: 'Student removed from course successfully' };
   }
 }

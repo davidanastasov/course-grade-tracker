@@ -14,6 +14,7 @@ import {
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Link } from "react-router-dom";
+import type { Course, AssignmentProgress } from "../../types/api";
 import {
   BookOpen,
   FileText,
@@ -243,7 +244,7 @@ const StudentDashboard: React.FC = () => {
 };
 
 interface CourseProgressCardProps {
-  course: any;
+  course: Course;
 }
 
 const CourseProgressCard: React.FC<CourseProgressCardProps> = ({ course }) => {
@@ -251,8 +252,9 @@ const CourseProgressCard: React.FC<CourseProgressCardProps> = ({ course }) => {
 
   const totalAssignments = progress?.length || 0;
   const completedAssignments =
-    progress?.filter((p) => p.isCompleted).length || 0;
-  const overdueAssignments = progress?.filter((p) => p.isOverdue).length || 0;
+    progress?.filter((p: AssignmentProgress) => p.isCompleted).length || 0;
+  const overdueAssignments =
+    progress?.filter((p: AssignmentProgress) => p.isOverdue).length || 0;
 
   return (
     <div className="p-4 border rounded-lg hover:shadow-sm transition-shadow">

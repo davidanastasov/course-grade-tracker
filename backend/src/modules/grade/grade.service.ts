@@ -215,9 +215,28 @@ export class GradeService {
     let totalWeight = 0;
     let currentGrade = 0;
 
+    // Helper function to map grade component category to assignment type
+    const mapCategoryToAssignmentType = (category: string): string[] => {
+      switch (category) {
+        case 'Lab':
+          return ['lab'];
+        case 'Assignment':
+          return ['assignment'];
+        case 'Midterm':
+          return ['quiz']; // Midterms are typically quiz-type assignments
+        case 'Exam':
+          return ['exam'];
+        case 'Project':
+          return ['project'];
+        default:
+          return [];
+      }
+    };
+
     const componentStats = course.gradeComponents.map((component) => {
-      const componentAssignments = assignments.filter(
-        (a) => a.type.toString() === component.type.toString()
+      const matchingTypes = mapCategoryToAssignmentType(component.category);
+      const componentAssignments = assignments.filter((a) =>
+        matchingTypes.includes(a.type.toString())
       );
       const componentGrades = grades.filter((g) =>
         componentAssignments.some((a) => a.id === g.assignment.id)
@@ -235,7 +254,7 @@ export class GradeService {
       return {
         id: component.id,
         name: component.name,
-        type: component.type,
+        category: component.category,
         weight: component.weight,
         currentScore: averageScore,
         maxPossibleScore: 100,
@@ -273,8 +292,7 @@ export class GradeService {
       passingStatus,
       gradeBand: gradeBand
         ? {
-            gradeValue: gradeBand.gradeValue,
-            gradeLetter: gradeBand.gradeLetter
+            gradeValue: gradeBand.gradeValue
           }
         : null,
       components: componentStats

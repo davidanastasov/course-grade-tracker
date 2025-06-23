@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  ForbiddenException
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
@@ -85,7 +90,15 @@ export class UserService {
     });
 
     if (existingEnrollment) {
-      throw new ConflictException('Student is already enrolled in this course');
+      if (existingEnrollment.status === EnrollmentStatus.ACTIVE) {
+        throw new ConflictException('Student is already enrolled in this course');
+      } else if (existingEnrollment.status === EnrollmentStatus.DROPPED) {
+        throw new ConflictException(
+          'This student was previously removed from the course and cannot rejoin'
+        );
+      } else {
+        throw new ConflictException('Student has an existing enrollment in this course');
+      }
     }
 
     // Create enrollment
@@ -123,16 +136,22 @@ export class UserService {
     }));
   }
 
-  async dropEnrollment(studentId: string, courseId: string): Promise<void> {
+  async dropEnrollment(studentId: string, courseId: string, user: User): Promise<void> {
     const enrollment = await this.enrollmentRepository.findOne({
       where: {
         student: { id: studentId },
         course: { id: courseId }
-      }
+      },
+      relations: ['course', 'course.professor', 'student']
     });
 
     if (!enrollment) {
       throw new NotFoundException('Enrollment not found');
+    }
+
+    // Check authorization - only course professor or admin can remove students
+    if (user.role !== UserRole.ADMIN && enrollment.course.professor.id !== user.id) {
+      throw new ForbiddenException('You can only remove students from your own courses');
     }
 
     enrollment.status = EnrollmentStatus.DROPPED;

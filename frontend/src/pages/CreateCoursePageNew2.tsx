@@ -1,23 +1,19 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Button } from "../components/ui/button";
-import { Input } from "../components/ui/input";
-import { Label } from "../components/ui/label";
-import { Textarea } from "../components/ui/textarea";
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { Textarea } from '../components/ui/textarea';
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "../components/ui/card";
-import { Badge } from "../components/ui/badge";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "../components/ui/tabs";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '../components/ui/select';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { Badge } from '../components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,31 +23,26 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
-} from "../components/ui/alert-dialog";
-import {
-  Plus,
-  Trash2,
-  BookOpen,
-  GraduationCap,
-  Settings,
-  AlertTriangle,
-} from "lucide-react";
-import { useCreateCourse } from "../hooks/useQueries";
+  AlertDialogTrigger
+} from '../components/ui/alert-dialog';
+import { Plus, Trash2, BookOpen, GraduationCap, Settings, AlertTriangle } from 'lucide-react';
+import { useCreateCourse } from '../hooks/useQueries';
 
-interface GradeComponent {
+interface LocalGradeComponent {
   id: string;
   name: string;
+  category: 'Midterm' | 'Exam' | 'Lab' | 'Assignment' | 'Project';
   weight: number;
-  required: boolean;
+  minimumScore: number;
+  totalPoints: number;
+  isMandatory: boolean;
 }
 
-interface GradeBand {
+interface LocalGradeBand {
   id: string;
   minScore: number;
   maxScore: number;
-  grade: number;
-  letterGrade: string;
+  gradeValue: number;
 }
 
 const CreateCoursePage: React.FC = () => {
@@ -59,80 +50,86 @@ const CreateCoursePage: React.FC = () => {
   const createCourseMutation = useCreateCourse();
 
   const [formData, setFormData] = useState({
-    name: "",
-    code: "",
-    description: "",
+    name: '',
+    code: '',
+    description: '',
     credits: 3,
-    passingGrade: 50,
+    passingGrade: 50
   });
 
-  const [gradeComponents, setGradeComponents] = useState<GradeComponent[]>([
+  const [gradeComponents, setGradeComponents] = useState<LocalGradeComponent[]>([
     {
-      id: "1",
-      name: "Assignments",
+      id: '1',
+      name: 'Assignments',
+      category: 'Assignment' as const,
       weight: 30,
-      required: false,
+      minimumScore: 0,
+      totalPoints: 100,
+      isMandatory: false
     },
     {
-      id: "2",
-      name: "Midterm Exam",
+      id: '2',
+      name: 'Midterm Exam',
+      category: 'Midterm' as const,
       weight: 30,
-      required: true,
+      minimumScore: 0,
+      totalPoints: 100,
+      isMandatory: true
     },
     {
-      id: "3",
-      name: "Final Exam",
+      id: '3',
+      name: 'Final Exam',
+      category: 'Exam' as const,
       weight: 40,
-      required: true,
-    },
+      minimumScore: 0,
+      totalPoints: 100,
+      isMandatory: true
+    }
   ]);
 
-  const [gradeBands, setGradeBands] = useState<GradeBand[]>([
-    { id: "1", minScore: 90, maxScore: 100, grade: 10, letterGrade: "A+" },
-    { id: "2", minScore: 85, maxScore: 89, grade: 9, letterGrade: "A" },
-    { id: "3", minScore: 80, maxScore: 84, grade: 8, letterGrade: "A-" },
-    { id: "4", minScore: 75, maxScore: 79, grade: 7, letterGrade: "B+" },
-    { id: "5", minScore: 70, maxScore: 74, grade: 6, letterGrade: "B" },
-    { id: "6", minScore: 65, maxScore: 69, grade: 5, letterGrade: "B-" },
-    { id: "7", minScore: 60, maxScore: 64, grade: 4, letterGrade: "C+" },
-    { id: "8", minScore: 55, maxScore: 59, grade: 3, letterGrade: "C" },
-    { id: "9", minScore: 50, maxScore: 54, grade: 2, letterGrade: "C-" },
-    { id: "10", minScore: 0, maxScore: 49, grade: 0, letterGrade: "F" },
+  const [gradeBands, setGradeBands] = useState<LocalGradeBand[]>([
+    { id: '1', minScore: 90, maxScore: 100, gradeValue: 10 },
+    { id: '2', minScore: 85, maxScore: 89, gradeValue: 9 },
+    { id: '3', minScore: 80, maxScore: 84, gradeValue: 8 },
+    { id: '4', minScore: 75, maxScore: 79, gradeValue: 7 },
+    { id: '5', minScore: 70, maxScore: 74, gradeValue: 6 },
+    { id: '6', minScore: 65, maxScore: 69, gradeValue: 5 },
+    { id: '7', minScore: 60, maxScore: 64, gradeValue: 4 },
+    { id: '8', minScore: 55, maxScore: 59, gradeValue: 3 },
+    { id: '9', minScore: 50, maxScore: 54, gradeValue: 2 },
+    { id: '10', minScore: 0, maxScore: 49, gradeValue: 0 }
   ]);
 
   const [passingRequirements, setPassingRequirements] = useState({
     requireAllComponents: false,
     minimumComponentsRequired: 0,
-    specificRequirements: [] as string[],
+    specificRequirements: [] as string[]
   });
 
-  const [currentTab, setCurrentTab] = useState("basic");
+  const [currentTab, setCurrentTab] = useState('basic');
 
-  const handleBasicInfoChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
+  const handleBasicInfoChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]:
-        name === "credits" || name === "passingGrade" ? Number(value) : value,
+      [name]: name === 'credits' || name === 'passingGrade' ? Number(value) : value
     }));
   };
 
   const addGradeComponent = () => {
-    const newComponent: GradeComponent = {
+    const newComponent: LocalGradeComponent = {
       id: Date.now().toString(),
-      name: "",
+      name: '',
+      category: 'Assignment',
       weight: 0,
-      required: false,
+      minimumScore: 0,
+      totalPoints: 100,
+      isMandatory: false
     };
     setGradeComponents((prev) => [...prev, newComponent]);
   };
 
-  const updateGradeComponent = (
-    id: string,
-    updates: Partial<GradeComponent>
-  ) => {
+  const updateGradeComponent = (id: string, updates: Partial<LocalGradeComponent>) => {
     setGradeComponents((prev) =>
       prev.map((comp) => (comp.id === id ? { ...comp, ...updates } : comp))
     );
@@ -143,20 +140,17 @@ const CreateCoursePage: React.FC = () => {
   };
 
   const addGradeBand = () => {
-    const newBand: GradeBand = {
+    const newBand: LocalGradeBand = {
       id: Date.now().toString(),
       minScore: 0,
       maxScore: 0,
-      grade: 0,
-      letterGrade: "",
+      gradeValue: 0
     };
     setGradeBands((prev) => [...prev, newBand]);
   };
 
-  const updateGradeBand = (id: string, updates: Partial<GradeBand>) => {
-    setGradeBands((prev) =>
-      prev.map((band) => (band.id === id ? { ...band, ...updates } : band))
-    );
+  const updateGradeBand = (id: string, updates: Partial<LocalGradeBand>) => {
+    setGradeBands((prev) => prev.map((band) => (band.id === id ? { ...band, ...updates } : band)));
   };
 
   const removeGradeBand = (id: string) => {
@@ -167,36 +161,31 @@ const CreateCoursePage: React.FC = () => {
     const errors: string[] = [];
 
     // Basic info validation
-    if (!formData.name.trim()) errors.push("Course name is required");
-    if (!formData.code.trim()) errors.push("Course code is required");
-    if (formData.credits < 1) errors.push("Credits must be at least 1");
+    if (!formData.name.trim()) errors.push('Course name is required');
+    if (!formData.code.trim()) errors.push('Course code is required');
+    if (formData.credits < 1) errors.push('Credits must be at least 1');
     if (formData.passingGrade < 0 || formData.passingGrade > 100) {
-      errors.push("Passing grade must be between 0 and 100");
+      errors.push('Passing grade must be between 0 and 100');
     }
 
     // Grade components validation
-    const totalWeight = gradeComponents.reduce(
-      (sum, comp) => sum + comp.weight,
-      0
-    );
+    const totalWeight = gradeComponents.reduce((sum, comp) => sum + comp.weight, 0);
     if (Math.abs(totalWeight - 100) > 0.01) {
-      errors.push("Grade component weights must total 100%");
+      errors.push('Grade component weights must total 100%');
     }
 
     gradeComponents.forEach((comp, index) => {
-      if (!comp.name.trim())
-        errors.push(`Grade component ${index + 1} needs a name`);
-      if (comp.weight <= 0)
-        errors.push(`Grade component "${comp.name}" needs a positive weight`);
+      if (!comp.name.trim()) errors.push(`Grade component ${index + 1} needs a name`);
+      if (comp.weight <= 0) errors.push(`Grade component "${comp.name}" needs a positive weight`);
     });
 
     // Grade bands validation
-    const sortedBands = [...gradeBands].sort((a, b) => b.minScore - a.minScore);
+    const sortedBands = [...gradeBands].sort((a, b) => b.gradeValue - a.gradeValue);
     for (let i = 0; i < sortedBands.length - 1; i++) {
       const current = sortedBands[i];
       const next = sortedBands[i + 1];
       if (current.minScore <= next.maxScore) {
-        errors.push("Grade bands cannot overlap");
+        errors.push('Grade bands cannot overlap');
         break;
       }
     }
@@ -207,7 +196,7 @@ const CreateCoursePage: React.FC = () => {
   const handleSubmit = async () => {
     const errors = validateForm();
     if (errors.length > 0) {
-      alert("Please fix the following errors:\n" + errors.join("\n"));
+      alert('Please fix the following errors:\n' + errors.join('\n'));
       return;
     }
 
@@ -217,49 +206,42 @@ const CreateCoursePage: React.FC = () => {
         ...formData,
         gradeComponents: gradeComponents.map((comp) => ({
           name: comp.name,
+          category: comp.category,
           weight: comp.weight,
-          required: comp.required,
+          minimumScore: comp.minimumScore,
+          totalPoints: comp.totalPoints,
+          isMandatory: comp.isMandatory
         })),
         gradeBands: gradeBands.map((band) => ({
           minScore: band.minScore,
           maxScore: band.maxScore,
-          grade: band.grade,
-          letterGrade: band.letterGrade,
+          gradeValue: band.gradeValue
         })),
-        passingRequirements,
+        passingRequirements
       };
 
       const course = await createCourseMutation.mutateAsync(courseData);
       navigate(`/courses/${course.id}`);
     } catch (error) {
-      console.error("Failed to create course:", error);
-      alert("Failed to create course. Please try again.");
+      console.error('Failed to create course:', error);
+      alert('Failed to create course. Please try again.');
     }
   };
 
-  const totalWeight = gradeComponents.reduce(
-    (sum, comp) => sum + comp.weight,
-    0
-  );
+  const totalWeight = gradeComponents.reduce((sum, comp) => sum + comp.weight, 0);
   const isWeightValid = Math.abs(totalWeight - 100) < 0.01;
 
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">
-            Create New Course
-          </h1>
+          <h1 className="text-3xl font-bold text-gray-900">Create New Course</h1>
           <p className="mt-2 text-gray-600">
             Set up your course structure, grading components, and requirements.
           </p>
         </div>
 
-        <Tabs
-          value={currentTab}
-          onValueChange={setCurrentTab}
-          className="w-full"
-        >
+        <Tabs value={currentTab} onValueChange={setCurrentTab} className="w-full">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="basic">Basic Info</TabsTrigger>
             <TabsTrigger value="components">Grade Components</TabsTrigger>
@@ -274,9 +256,7 @@ const CreateCoursePage: React.FC = () => {
                   <BookOpen className="h-5 w-5" />
                   Course Information
                 </CardTitle>
-                <CardDescription>
-                  Basic information about your course
-                </CardDescription>
+                <CardDescription>Basic information about your course</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -353,7 +333,7 @@ const CreateCoursePage: React.FC = () => {
                     Grade Components
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge variant={isWeightValid ? "default" : "destructive"}>
+                    <Badge variant={isWeightValid ? 'default' : 'destructive'}>
                       Total: {totalWeight}%
                     </Badge>
                     <Button onClick={addGradeComponent} size="sm">
@@ -363,67 +343,143 @@ const CreateCoursePage: React.FC = () => {
                   </div>
                 </CardTitle>
                 <CardDescription>
-                  Define how student grades will be calculated. Total weight
-                  must equal 100%.
+                  Define how student grades will be calculated. Total weight must equal 100%.
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {gradeComponents.map((component) => (
-                    <div key={component.id} className="p-4 border rounded-lg">
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                        <div>
-                          <Label>Component Name</Label>
-                          <Input
-                            value={component.name}
-                            onChange={(e) =>
-                              updateGradeComponent(component.id, {
-                                name: e.target.value,
-                              })
-                            }
-                            placeholder="e.g. Assignments"
-                          />
+                <div className="space-y-6">
+                  {(['Midterm', 'Exam', 'Lab', 'Assignment', 'Project'] as const).map(
+                    (category) => {
+                      const categoryComponents = gradeComponents.filter(
+                        (comp) => comp.category === category
+                      );
+                      if (categoryComponents.length === 0) return null;
+
+                      return (
+                        <div key={category} className="space-y-4">
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-medium text-lg text-gray-900">{category}</h4>
+                            <Badge variant="outline" className="text-xs">
+                              {categoryComponents.length} component
+                              {categoryComponents.length !== 1 ? 's' : ''}
+                            </Badge>
+                          </div>
+                          <div className="space-y-3">
+                            {categoryComponents.map((component) => (
+                              <div key={component.id} className="p-4 border rounded-lg bg-gray-50">
+                                <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
+                                  <div>
+                                    <Label>Component Name</Label>
+                                    <Input
+                                      value={component.name}
+                                      onChange={(e) =>
+                                        updateGradeComponent(component.id, {
+                                          name: e.target.value
+                                        })
+                                      }
+                                      placeholder="e.g. Assignments"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label>Category</Label>
+                                    <Select
+                                      value={component.category}
+                                      onValueChange={(
+                                        value: 'Midterm' | 'Exam' | 'Lab' | 'Assignment' | 'Project'
+                                      ) =>
+                                        updateGradeComponent(component.id, {
+                                          category: value
+                                        })
+                                      }
+                                    >
+                                      <SelectTrigger>
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="Midterm">Midterm</SelectItem>
+                                        <SelectItem value="Exam">Exam</SelectItem>
+                                        <SelectItem value="Lab">Lab</SelectItem>
+                                        <SelectItem value="Assignment">Assignment</SelectItem>
+                                        <SelectItem value="Project">Project</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <div>
+                                    <Label>Weight (%)</Label>
+                                    <Input
+                                      type="number"
+                                      min="0"
+                                      max="100"
+                                      value={component.weight}
+                                      onChange={(e) =>
+                                        updateGradeComponent(component.id, {
+                                          weight: Number(e.target.value)
+                                        })
+                                      }
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label>Min Score</Label>
+                                    <Input
+                                      type="number"
+                                      min="0"
+                                      value={component.minimumScore}
+                                      onChange={(e) =>
+                                        updateGradeComponent(component.id, {
+                                          minimumScore: Number(e.target.value)
+                                        })
+                                      }
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label>Total Points</Label>
+                                    <Input
+                                      type="number"
+                                      min="1"
+                                      value={component.totalPoints}
+                                      onChange={(e) =>
+                                        updateGradeComponent(component.id, {
+                                          totalPoints: Number(e.target.value)
+                                        })
+                                      }
+                                    />
+                                  </div>
+                                  <div className="flex items-center space-x-2">
+                                    <input
+                                      type="checkbox"
+                                      id={`mandatory-${component.id}`}
+                                      checked={component.isMandatory}
+                                      onChange={(e) =>
+                                        updateGradeComponent(component.id, {
+                                          isMandatory: e.target.checked
+                                        })
+                                      }
+                                    />
+                                    <Label htmlFor={`mandatory-${component.id}`}>Mandatory</Label>
+                                  </div>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => removeGradeComponent(component.id)}
+                                    disabled={gradeComponents.length <= 1}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                        <div>
-                          <Label>Weight (%)</Label>
-                          <Input
-                            type="number"
-                            min="0"
-                            max="100"
-                            value={component.weight}
-                            onChange={(e) =>
-                              updateGradeComponent(component.id, {
-                                weight: Number(e.target.value),
-                              })
-                            }
-                          />
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <input
-                            type="checkbox"
-                            id={`required-${component.id}`}
-                            checked={component.required}
-                            onChange={(e) =>
-                              updateGradeComponent(component.id, {
-                                required: e.target.checked,
-                              })
-                            }
-                          />
-                          <Label htmlFor={`required-${component.id}`}>
-                            Required for passing
-                          </Label>
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => removeGradeComponent(component.id)}
-                          disabled={gradeComponents.length <= 1}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+                      );
+                    }
+                  )}
+                </div>
+
+                <div className="mt-6">
+                  <Button onClick={addGradeComponent} variant="outline">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Grade Component
+                  </Button>
                 </div>
 
                 {!isWeightValid && (
@@ -431,8 +487,7 @@ const CreateCoursePage: React.FC = () => {
                     <div className="flex items-center gap-2">
                       <AlertTriangle className="h-4 w-4 text-yellow-600" />
                       <p className="text-yellow-800">
-                        Warning: Total weight is {totalWeight}%. It must equal
-                        100%.
+                        Warning: Total weight is {totalWeight}%. It must equal 100%.
                       </p>
                     </div>
                   </div>
@@ -454,9 +509,7 @@ const CreateCoursePage: React.FC = () => {
                     Add Band
                   </Button>
                 </CardTitle>
-                <CardDescription>
-                  Define the grading scale for final marks
-                </CardDescription>
+                <CardDescription>Define the grading scale for final marks</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
@@ -472,7 +525,7 @@ const CreateCoursePage: React.FC = () => {
                             value={band.minScore}
                             onChange={(e) =>
                               updateGradeBand(band.id, {
-                                minScore: Number(e.target.value),
+                                minScore: Number(e.target.value)
                               })
                             }
                           />
@@ -486,7 +539,7 @@ const CreateCoursePage: React.FC = () => {
                             value={band.maxScore}
                             onChange={(e) =>
                               updateGradeBand(band.id, {
-                                maxScore: Number(e.target.value),
+                                maxScore: Number(e.target.value)
                               })
                             }
                           />
@@ -497,24 +550,12 @@ const CreateCoursePage: React.FC = () => {
                             type="number"
                             min="0"
                             max="10"
-                            value={band.grade}
+                            value={band.gradeValue}
                             onChange={(e) =>
                               updateGradeBand(band.id, {
-                                grade: Number(e.target.value),
+                                gradeValue: Number(e.target.value)
                               })
                             }
-                          />
-                        </div>
-                        <div>
-                          <Label>Letter Grade</Label>
-                          <Input
-                            value={band.letterGrade}
-                            onChange={(e) =>
-                              updateGradeBand(band.id, {
-                                letterGrade: e.target.value,
-                              })
-                            }
-                            placeholder="A, B, C..."
                           />
                         </div>
                         <Button
@@ -549,13 +590,12 @@ const CreateCoursePage: React.FC = () => {
                     onChange={(e) =>
                       setPassingRequirements((prev) => ({
                         ...prev,
-                        requireAllComponents: e.target.checked,
+                        requireAllComponents: e.target.checked
                       }))
                     }
                   />
                   <Label htmlFor="requireAll">
-                    Students must complete ALL grade components to be eligible
-                    for final grade
+                    Students must complete ALL grade components to be eligible for final grade
                   </Label>
                 </div>
 
@@ -569,31 +609,23 @@ const CreateCoursePage: React.FC = () => {
                     onChange={(e) =>
                       setPassingRequirements((prev) => ({
                         ...prev,
-                        minimumComponentsRequired: Number(e.target.value),
+                        minimumComponentsRequired: Number(e.target.value)
                       }))
                     }
                   />
                   <p className="text-sm text-gray-600 mt-1">
-                    Minimum number of components that must be completed (0 = no
-                    requirement)
+                    Minimum number of components that must be completed (0 = no requirement)
                   </p>
                 </div>
 
                 <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <h4 className="font-medium text-blue-900 mb-2">
-                    Examples of Requirements:
-                  </h4>
+                  <h4 className="font-medium text-blue-900 mb-2">Examples of Requirements:</h4>
                   <ul className="text-sm text-blue-800 space-y-1">
                     <li>
-                      • Students must complete all lab assignments to qualify
-                      for the final exam
+                      • Students must complete all lab assignments to qualify for the final exam
                     </li>
-                    <li>
-                      • At least 80% attendance required for course completion
-                    </li>
-                    <li>
-                      • Must pass the midterm exam to be eligible for the final
-                    </li>
+                    <li>• At least 80% attendance required for course completion</li>
+                    <li>• Must pass the midterm exam to be eligible for the final</li>
                   </ul>
                 </div>
               </CardContent>
@@ -603,45 +635,33 @@ const CreateCoursePage: React.FC = () => {
 
         {/* Action Buttons */}
         <div className="mt-8 flex justify-between">
-          <Button variant="outline" onClick={() => navigate("/courses")}>
+          <Button variant="outline" onClick={() => navigate('/courses')}>
             Cancel
           </Button>
           <div className="flex gap-2">
             <Button
               variant="outline"
               onClick={() => {
-                const currentIndex = [
-                  "basic",
-                  "components",
-                  "bands",
-                  "requirements",
-                ].indexOf(currentTab);
+                const currentIndex = ['basic', 'components', 'bands', 'requirements'].indexOf(
+                  currentTab
+                );
                 if (currentIndex > 0) {
-                  setCurrentTab(
-                    ["basic", "components", "bands", "requirements"][
-                      currentIndex - 1
-                    ]
-                  );
+                  setCurrentTab(['basic', 'components', 'bands', 'requirements'][currentIndex - 1]);
                 }
               }}
-              disabled={currentTab === "basic"}
+              disabled={currentTab === 'basic'}
             >
               Previous
             </Button>
-            {currentTab !== "requirements" ? (
+            {currentTab !== 'requirements' ? (
               <Button
                 onClick={() => {
-                  const currentIndex = [
-                    "basic",
-                    "components",
-                    "bands",
-                    "requirements",
-                  ].indexOf(currentTab);
+                  const currentIndex = ['basic', 'components', 'bands', 'requirements'].indexOf(
+                    currentTab
+                  );
                   if (currentIndex < 3) {
                     setCurrentTab(
-                      ["basic", "components", "bands", "requirements"][
-                        currentIndex + 1
-                      ]
+                      ['basic', 'components', 'bands', 'requirements'][currentIndex + 1]
                     );
                   }
                 }}
@@ -652,24 +672,20 @@ const CreateCoursePage: React.FC = () => {
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button disabled={createCourseMutation.isPending}>
-                    {createCourseMutation.isPending
-                      ? "Creating..."
-                      : "Create Course"}
+                    {createCourseMutation.isPending ? 'Creating...' : 'Create Course'}
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>Create Course</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Are you sure you want to create this course? You can edit
-                      these settings later.
+                      Are you sure you want to create this course? You can edit these settings
+                      later.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleSubmit}>
-                      Create Course
-                    </AlertDialogAction>
+                    <AlertDialogAction onClick={handleSubmit}>Create Course</AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>

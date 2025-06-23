@@ -1,30 +1,30 @@
-import { apiClient } from "../lib/api";
+import { apiClient } from '../lib/api';
 import type {
   Assignment,
   AssignmentFile,
   AssignmentSubmission,
-  CreateAssignmentRequest,
-} from "../types/api";
+  AssignmentProgress,
+  AssignmentOverview,
+  CreateAssignmentRequest
+} from '../types/api';
 
 export const assignmentService = {
   // Assignment management
   async getAssignments(courseId?: string): Promise<Assignment[]> {
-    const url = courseId ? `/assignments/course/${courseId}` : "/assignments";
+    const url = courseId ? `/assignments/course/${courseId}` : '/assignments';
     return apiClient.get<Assignment[]>(url);
   },
 
   async getMyAssignments(): Promise<Assignment[]> {
-    return apiClient.get<Assignment[]>("/assignments/my");
+    return apiClient.get<Assignment[]>('/assignments/my');
   },
 
   async getAssignment(id: string): Promise<Assignment> {
     return apiClient.get<Assignment>(`/assignments/${id}`);
   },
 
-  async createAssignment(
-    assignmentData: CreateAssignmentRequest
-  ): Promise<Assignment> {
-    return apiClient.post<Assignment>("/assignments", assignmentData);
+  async createAssignment(assignmentData: CreateAssignmentRequest): Promise<Assignment> {
+    return apiClient.post<Assignment>('/assignments', assignmentData);
   },
 
   async updateAssignment(
@@ -40,30 +40,22 @@ export const assignmentService = {
 
   // File management
   async uploadFile(assignmentId: string, file: File): Promise<AssignmentFile> {
-    return apiClient.uploadFile<AssignmentFile>(
-      `/assignments/${assignmentId}/upload`,
-      file
-    );
+    return apiClient.uploadFile<AssignmentFile>(`/assignments/${assignmentId}/upload`, file);
   },
 
   async getAssignmentFiles(assignmentId: string): Promise<AssignmentFile[]> {
-    return apiClient.get<AssignmentFile[]>(
-      `/assignments/${assignmentId}/files`
-    );
+    return apiClient.get<AssignmentFile[]>(`/assignments/${assignmentId}/files`);
   },
 
   async downloadFile(fileId: string): Promise<Blob> {
-    const response = await fetch(
-      `http://localhost:3000/api/assignments/files/${fileId}/download`,
-      {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
+    const response = await fetch(`http://localhost:3000/api/assignments/files/${fileId}/download`, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('token')}`
       }
-    );
+    });
 
     if (!response.ok) {
-      throw new Error("Failed to download file");
+      throw new Error('Failed to download file');
     }
 
     return response.blob();
@@ -78,114 +70,120 @@ export const assignmentService = {
     return apiClient.patch<Assignment>(`/assignments/${id}/publish`, {});
   },
 
-  async markAsCompleted(
-    id: string,
-    notes?: string
-  ): Promise<AssignmentSubmission> {
-    return apiClient.patch<AssignmentSubmission>(
-      `/assignments/${id}/complete`,
-      { notes }
-    );
+  // Student assignment submission methods
+  async markAsCompleted(assignmentId: string, notes?: string): Promise<AssignmentSubmission> {
+    return apiClient.post<AssignmentSubmission>('/assignment-submissions/complete', {
+      assignmentId,
+      notes
+    });
   },
 
-  async unmarkCompleted(id: string): Promise<AssignmentSubmission> {
-    return apiClient.patch<AssignmentSubmission>(
-      `/assignments/${id}/uncomplete`,
-      {}
-    );
-  },
-
-  // Student submissions
   async submitAssignment(
     assignmentId: string,
     data: {
       notes?: string;
-      file?: File;
+      status?: string;
     }
   ): Promise<AssignmentSubmission> {
-    if (data.file) {
-      // Upload file first
-      const fileResult = await this.uploadFile(assignmentId, data.file);
-      return apiClient.post<AssignmentSubmission>("/assignments/submit", {
-        assignmentId,
-        fileId: fileResult.id,
-        notes: data.notes,
-      });
-    }
-
-    return apiClient.post<AssignmentSubmission>("/assignments/submit", {
+    return apiClient.post<AssignmentSubmission>('/assignment-submissions', {
       assignmentId,
       notes: data.notes,
+      status: data.status || 'SUBMITTED'
     });
+  },
+
+  async updateSubmission(
+    submissionId: string,
+    data: {
+      notes?: string;
+      status?: string;
+    }
+  ): Promise<AssignmentSubmission> {
+    return apiClient.put<AssignmentSubmission>(`/assignment-submissions/${submissionId}`, data);
   },
 
   async getSubmission(
     assignmentId: string,
     studentId?: string
   ): Promise<AssignmentSubmission | null> {
-    const endpoint = studentId
-      ? `/assignments/${assignmentId}/submission/${studentId}`
-      : `/assignments/${assignmentId}/submission`;
-
     try {
-      return await apiClient.get<AssignmentSubmission>(endpoint);
+      const params = new URLSearchParams();
+      params.append('assignmentId', assignmentId);
+      if (studentId) {
+        params.append('studentId', studentId);
+      }
+      return await apiClient.get<AssignmentSubmission>(
+        `/assignment-submissions?${params.toString()}`
+      );
     } catch {
       // Return null if no submission found
       return null;
     }
   },
 
-  async getAssignmentSubmissions(
-    assignmentId: string
-  ): Promise<AssignmentSubmission[]> {
+  async getMySubmissions(): Promise<AssignmentSubmission[]> {
+    return apiClient.get<AssignmentSubmission[]>('/assignment-submissions/my');
+  },
+
+  async getAssignmentSubmissions(assignmentId: string): Promise<AssignmentSubmission[]> {
     return apiClient.get<AssignmentSubmission[]>(
-      `/assignments/${assignmentId}/submissions`
+      `/assignment-submissions/assignment/${assignmentId}`
     );
   },
 
   // Assignment progress for students
-  async getStudentProgress(courseId: string): Promise<
-    Array<{
-      assignment: Assignment;
-      submission?: AssignmentSubmission;
-      isCompleted: boolean;
-      isOverdue: boolean;
-    }>
-  > {
-    return apiClient.get(`/assignments/progress/${courseId}`);
+  async getStudentProgress(courseId: string): Promise<AssignmentProgress[]> {
+    // Get assignments for the course
+    const assignments = await this.getAssignments(courseId);
+
+    // Get student's submissions
+    const submissions = await this.getMySubmissions();
+
+    // Map assignments with their submission status
+    return assignments.map((assignment) => {
+      const submission = submissions.find((sub) => sub.assignment.id === assignment.id);
+
+      const isCompleted = submission?.status === 'COMPLETED';
+      const isOverdue = assignment.dueDate
+        ? new Date() > new Date(assignment.dueDate) && !submission
+        : false;
+
+      return {
+        assignment,
+        submission,
+        isCompleted,
+        isOverdue
+      };
+    });
   },
 
   // Professor assignment overview
-  async getAssignmentOverview(assignmentId: string): Promise<{
-    assignment: Assignment;
-    totalStudents: number;
-    submittedCount: number;
-    completedCount: number;
-    overdueCount: number;
-    submissions: Array<{
-      student: {
-        id: string;
-        firstName: string;
-        lastName: string;
-        username: string;
-      };
-      submission?: AssignmentSubmission;
-      isCompleted: boolean;
-      isOverdue: boolean;
-    }>;
-  }> {
-    return apiClient.get(`/assignments/${assignmentId}/overview`);
-  },
+  async getAssignmentOverview(assignmentId: string): Promise<AssignmentOverview> {
+    // Get assignment details
+    const assignment = await this.getAssignment(assignmentId);
 
-  // Download submission file
-  async downloadSubmissionFile(
-    assignmentId: string,
-    studentId?: string
-  ): Promise<Blob> {
-    const endpoint = studentId
-      ? `/assignments/${assignmentId}/submission/${studentId}/file`
-      : `/assignments/${assignmentId}/submission/file`;
+    // Get all submissions for this assignment
+    const submissions = await this.getAssignmentSubmissions(assignmentId);
 
-    return apiClient.getBlob(endpoint);
-  },
+    const submittedCount = submissions.filter((sub) => sub.status !== 'DRAFT').length;
+    const completedCount = submissions.filter((sub) => sub.status === 'COMPLETED').length;
+    const overdueCount = submissions.filter((sub) => sub.isLate).length;
+
+    // Map submissions with status information
+    const submissionData = submissions.map((submission) => ({
+      student: submission.student,
+      submission,
+      isCompleted: submission.status === 'COMPLETED',
+      isOverdue: submission.isLate
+    }));
+
+    return {
+      assignment,
+      totalStudents: submissionData.length, // This should be improved to get actual enrolled students
+      submittedCount,
+      completedCount,
+      overdueCount,
+      submissions: submissionData
+    };
+  }
 };

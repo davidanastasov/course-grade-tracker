@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import {
@@ -78,7 +78,7 @@ const GradesPage: React.FC = () => {
     loadData();
   }, [user]);
 
-  const handleFilterChange = async () => {
+  const handleFilterChange = useCallback(async () => {
     setLoading(true);
     try {
       let filteredGrades;
@@ -106,7 +106,18 @@ const GradesPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedCourse, selectedStudent, user]);
+
+  // Auto-apply filters when selections change
+  useEffect(() => {
+    if (
+      !loading &&
+      user &&
+      (selectedCourse !== "all" || selectedStudent !== "all")
+    ) {
+      handleFilterChange();
+    }
+  }, [selectedCourse, selectedStudent, loading, user, handleFilterChange]);
 
   const handleCreateGrade = async () => {
     if (!newGrade.studentId || newGrade.score < 0) return;
@@ -153,7 +164,7 @@ const GradesPage: React.FC = () => {
   const isProfessor = user?.role === "professor";
 
   return (
-    <div className="container mx-auto px-4 py-6">
+    <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Grades</h1>

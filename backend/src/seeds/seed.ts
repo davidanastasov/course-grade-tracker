@@ -84,37 +84,37 @@ async function seed() {
         gradeComponents: [
           {
             name: 'Theory Exams',
-            type: ComponentType.THEORY,
+            category: ComponentType.EXAM,
             weight: 40,
             minimumScore: 50
           },
           {
             name: 'Lab Work',
-            type: ComponentType.LAB,
+            category: ComponentType.LAB,
             weight: 30,
             minimumScore: 0
           },
           {
             name: 'Assignments',
-            type: ComponentType.ASSIGNMENT,
+            category: ComponentType.ASSIGNMENT,
             weight: 20,
             minimumScore: 0
           },
           {
-            name: 'Quizzes',
-            type: ComponentType.QUIZ,
+            name: 'Projects',
+            category: ComponentType.PROJECT,
             weight: 10,
             minimumScore: 0
           }
         ],
         gradeBands: [
-          { minScore: 0, maxScore: 39, gradeValue: 2.0, gradeLetter: 'F' },
-          { minScore: 40, maxScore: 49, gradeValue: 3.0, gradeLetter: 'E' },
-          { minScore: 50, maxScore: 59, gradeValue: 4.0, gradeLetter: 'D' },
-          { minScore: 60, maxScore: 69, gradeValue: 6.0, gradeLetter: 'C' },
-          { minScore: 70, maxScore: 79, gradeValue: 7.0, gradeLetter: 'B' },
-          { minScore: 80, maxScore: 89, gradeValue: 8.0, gradeLetter: 'A' },
-          { minScore: 90, maxScore: 100, gradeValue: 10.0, gradeLetter: 'A+' }
+          { minScore: 0, maxScore: 39, gradeValue: 2.0 },
+          { minScore: 40, maxScore: 49, gradeValue: 3.0 },
+          { minScore: 50, maxScore: 59, gradeValue: 4.0 },
+          { minScore: 60, maxScore: 69, gradeValue: 6.0 },
+          { minScore: 70, maxScore: 79, gradeValue: 7.0 },
+          { minScore: 80, maxScore: 89, gradeValue: 8.0 },
+          { minScore: 90, maxScore: 100, gradeValue: 10.0 }
         ]
       },
       prof1
@@ -130,35 +130,35 @@ async function seed() {
         gradeComponents: [
           {
             name: 'Midterm Exam',
-            type: ComponentType.EXAM,
+            category: ComponentType.MIDTERM,
             weight: 35,
             minimumScore: 40
           },
           {
             name: 'Final Exam',
-            type: ComponentType.EXAM,
+            category: ComponentType.EXAM,
             weight: 35,
             minimumScore: 40
           },
           {
             name: 'Homework',
-            type: ComponentType.ASSIGNMENT,
+            category: ComponentType.ASSIGNMENT,
             weight: 20,
             minimumScore: 0
           },
           {
-            name: 'Quizzes',
-            type: ComponentType.QUIZ,
+            name: 'Projects',
+            category: ComponentType.PROJECT,
             weight: 10,
             minimumScore: 0
           }
         ],
         gradeBands: [
-          { minScore: 0, maxScore: 49, gradeValue: 2.0, gradeLetter: 'F' },
-          { minScore: 50, maxScore: 59, gradeValue: 6.0, gradeLetter: 'C' },
-          { minScore: 60, maxScore: 69, gradeValue: 7.0, gradeLetter: 'B' },
-          { minScore: 70, maxScore: 79, gradeValue: 8.0, gradeLetter: 'A' },
-          { minScore: 80, maxScore: 100, gradeValue: 10.0, gradeLetter: 'A+' }
+          { minScore: 0, maxScore: 49, gradeValue: 2.0 },
+          { minScore: 50, maxScore: 59, gradeValue: 6.0 },
+          { minScore: 60, maxScore: 69, gradeValue: 7.0 },
+          { minScore: 70, maxScore: 79, gradeValue: 8.0 },
+          { minScore: 80, maxScore: 100, gradeValue: 10.0 }
         ]
       },
       prof2
@@ -169,7 +169,7 @@ async function seed() {
     // Create assignments using AssignmentService
     const assignmentService = app.get(AssignmentService);
 
-    await assignmentService.createAssignment(
+    const assignment1 = await assignmentService.createAssignment(
       {
         title: 'Programming Assignment 1',
         description: 'Basic programming exercises in Python',
@@ -182,7 +182,7 @@ async function seed() {
       prof1
     );
 
-    await assignmentService.createAssignment(
+    const assignment2 = await assignmentService.createAssignment(
       {
         title: 'Lab 1: Setup and Basic Operations',
         description: 'Setting up development environment and basic operations',
@@ -195,7 +195,7 @@ async function seed() {
       prof1
     );
 
-    await assignmentService.createAssignment(
+    const assignment3 = await assignmentService.createAssignment(
       {
         title: 'Derivatives Quiz',
         description: 'Quiz on basic derivative rules',
@@ -208,7 +208,12 @@ async function seed() {
       prof2
     );
 
-    console.log('✓ Created assignments');
+    // Publish assignments so students can see them
+    await assignmentService.publishAssignment(assignment1.id, prof1);
+    await assignmentService.publishAssignment(assignment2.id, prof1);
+    await assignmentService.publishAssignment(assignment3.id, prof2);
+
+    console.log('✓ Created and published assignments');
 
     // Enroll students in courses using UserService
     const userService = app.get(UserService);

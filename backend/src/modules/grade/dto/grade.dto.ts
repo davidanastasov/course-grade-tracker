@@ -85,12 +85,11 @@ export class ProjectedGradeDto {
   passingStatus: 'passing' | 'failing' | 'at-risk' | 'unknown';
   gradeBand: {
     gradeValue: number;
-    gradeLetter: string;
   } | null;
   components: {
     id: string;
     name: string;
-    type: string;
+    category: string;
     weight: number;
     currentScore: number;
     maxPossibleScore: number;

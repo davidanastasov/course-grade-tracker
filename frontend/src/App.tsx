@@ -1,26 +1,22 @@
-import {
-  BrowserRouter as Router,
-  Routes,
-  Route,
-  Navigate,
-} from "react-router-dom";
-import { AuthProvider } from "./contexts/AuthContext";
-import ProtectedRoute from "./components/ProtectedRoute";
-import Header from "./components/layout/Header";
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './contexts/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
+import Header from './components/layout/Header';
+import { Toaster } from './components/ui/sonner';
 
 // Pages
-import LoginPage from "./pages/LoginPage";
-import RegisterPage from "./pages/RegisterPage";
-import DashboardPage from "./pages/DashboardPage";
-import CoursesPage from "./pages/CoursesPage";
-import CreateCoursePage from "./pages/CreateCoursePage";
-import EditCoursePage from "./pages/EditCoursePage";
-import AssignmentsPage from "./pages/AssignmentsPage";
-import CreateAssignmentPage from "./pages/CreateAssignmentPage";
-import AssignmentDetailPage from "./pages/AssignmentDetailPage";
-import EditAssignmentPage from "./pages/EditAssignmentPage";
-import GradesPage from "./pages/GradesPage";
-import CourseDetailPage from "./pages/CourseDetailPage";
+import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
+import DashboardPage from './pages/DashboardPage';
+import CoursesPage from './pages/CoursesPage';
+import CreateCoursePage from './pages/CreateCoursePage';
+import EditCoursePage from './pages/EditCoursePage';
+import AssignmentsPage from './pages/AssignmentsPage';
+import CreateAssignmentPage from './pages/CreateAssignmentPage';
+import AssignmentDetailPage from './pages/AssignmentDetailPage';
+import EditAssignmentPage from './pages/EditAssignmentPage';
+import GradesPage from './pages/GradesPage';
+import CourseDetailPage from './pages/CourseDetailPage';
 
 function App() {
   return (
@@ -133,6 +129,7 @@ function App() {
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
             </Routes>
           </main>
+          <Toaster />
         </div>
       </Router>
     </AuthProvider>
