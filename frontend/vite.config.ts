@@ -1,27 +1,32 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv, type UserConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import tailwindcss from '@tailwindcss/vite';
 
-const __dirname = fileURLToPath(new URL('.', import.meta.url));
+export default async ({ mode }: UserConfig) => {
+  // @ts-expect-error - Vite does not have types for this
+  import.meta.env = loadEnv(mode, process.cwd());
+  await import('./src/env');
 
-// https://vite.dev/config/
-export default defineConfig({
-  plugins: [react(), tailwindcss()],
-  resolve: {
-    alias: {
-      '@': resolve(__dirname, './src')
-    }
-  },
-  build: {
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          'react-vendor': ['react', 'react-dom', 'react-router-dom']
-        }
+  const __dirname = fileURLToPath(new URL('.', import.meta.url));
+
+  return defineConfig({
+    plugins: [react(), tailwindcss()],
+    resolve: {
+      alias: {
+        '@': resolve(__dirname, './src')
       }
     },
-    chunkSizeWarningLimit: 1000
-  }
-});
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            'react-vendor': ['react', 'react-dom', 'react-router-dom']
+          }
+        }
+      },
+      chunkSizeWarningLimit: 1000
+    }
+  });
+};
