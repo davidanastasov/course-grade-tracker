@@ -11,6 +11,7 @@ import { UserModule } from './modules/user/user.module';
 import { CourseModule } from './modules/course/course.module';
 import { AssignmentModule } from './modules/assignment/assignment.module';
 import { GradeModule } from './modules/grade/grade.module';
+import { HealthModule } from './modules/health/health.module';
 
 @Module({
   imports: [
@@ -30,7 +31,8 @@ import { GradeModule } from './modules/grade/grade.module';
     UserModule,
     CourseModule,
     AssignmentModule,
-    GradeModule
+    GradeModule,
+    HealthModule
   ],
   controllers: [AppController]
 })

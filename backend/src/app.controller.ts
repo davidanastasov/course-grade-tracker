@@ -1,12 +1,6 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller } from '@nestjs/common';
 
 @Controller()
 export class AppController {
-  @Get('health')
-  getHealth(): { status: string; timestamp: string } {
-    return {
-      status: 'ok',
-      timestamp: new Date().toISOString()
-    };
-  }
+  // Main application controller - health checks are now handled by HealthModule
 }
