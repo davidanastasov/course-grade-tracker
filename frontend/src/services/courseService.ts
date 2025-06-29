@@ -10,31 +10,6 @@ import type {
   User
 } from '../types/api';
 
-// Helper function to map legacy 'type' field to 'category'
-const mapGradeComponentType = (component: any): GradeComponent => {
-  if (component.type && !component.category) {
-    // Map legacy type values to category values
-    const typeMapping: Record<string, 'Lab' | 'Assignment' | 'Midterm' | 'Exam' | 'Project'> = {
-      lab: 'Lab',
-      assignment: 'Assignment',
-      quiz: 'Midterm', // Quiz maps to Midterm
-      exam: 'Exam',
-      project: 'Project'
-    };
-
-    component.category = typeMapping[component.type] || 'Assignment';
-  }
-  return component;
-};
-
-// Helper function to transform course data
-const transformCourseData = (course: any): Course => {
-  if (course.gradeComponents) {
-    course.gradeComponents = course.gradeComponents.map(mapGradeComponentType);
-  }
-  return course;
-};
-
 export const courseService = {
   // Course management
   async getCourses(): Promise<Course[]> {
