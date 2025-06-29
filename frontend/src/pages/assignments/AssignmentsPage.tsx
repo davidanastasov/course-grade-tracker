@@ -1,26 +1,26 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { Button } from "../components/ui/button";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "../components/ui/card";
-import { Badge } from "../components/ui/badge";
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "../components/ui/select";
-import { Label } from "../components/ui/label";
-import { useAuth } from "../contexts/AuthContext";
-import { assignmentService } from "../services/assignmentService";
-import { courseService } from "../services/courseService";
-import type { Assignment, Course } from "../types/api";
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { useAuth } from "@/contexts/AuthContext";
+import { assignmentService } from "@/services/assignmentService";
+import { courseService } from "@/services/courseService";
+import type { Assignment, Course } from "@/types/api";
 
 const AssignmentsPage: React.FC = () => {
   const { user } = useAuth();

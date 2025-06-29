@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Button } from '../components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
-import { Badge } from '../components/ui/badge';
-import { Input } from '../components/ui/input';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
-import { useAuth } from '../contexts/AuthContext';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { useCourses, useMyCourses, useEnrollInCourse } from '../hooks/useQueries';
+import { useCourses, useMyCourses, useEnrollInCourse } from '@/hooks/useQueries';
 import { Plus, Search, Users, BookOpen, GraduationCap } from 'lucide-react';
-import type { Course } from '../types/api';
+import type { Course } from '@/types/api';
 
 const CoursesPage: React.FC = () => {
   const { user } = useAuth();

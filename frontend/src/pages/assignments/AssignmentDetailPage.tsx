@@ -1,17 +1,17 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { Button } from "../components/ui/button";
-import { Input } from "../components/ui/input";
-import { Label } from "../components/ui/label";
-import { Textarea } from "../components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "../components/ui/card";
-import { Badge } from "../components/ui/badge";
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,10 +22,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "../components/ui/alert-dialog";
-import { useAuth } from "../contexts/AuthContext";
-import { assignmentService } from "../services/assignmentService";
-import type { Assignment, AssignmentSubmission } from "../types/api";
+} from "@/components/ui/alert-dialog";
+import { useAuth } from "@/contexts/AuthContext";
+import { assignmentService } from "@/services/assignmentService";
+import type { Assignment, AssignmentSubmission } from "@/types/api";
 
 const AssignmentDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();

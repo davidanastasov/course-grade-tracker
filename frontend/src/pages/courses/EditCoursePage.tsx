@@ -1,19 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Button } from '../components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
-import { Input } from '../components/ui/input';
-import { Label } from '../components/ui/label';
-import { Textarea } from '../components/ui/textarea';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue
-} from '../components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
-import { Badge } from '../components/ui/badge';
+} from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,7 +24,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger
-} from '../components/ui/alert-dialog';
+} from '@/components/ui/alert-dialog';
 import {
   Dialog,
   DialogContent,
@@ -32,12 +32,12 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle
-} from '../components/ui/dialog';
+} from '@/components/ui/dialog';
 import { Edit, Trash2 } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
-import { useRemoveStudentFromCourse } from '../hooks/useQueries';
-import { courseService } from '../services/courseService';
-import type { Course, CreateCourseRequest, GradeComponent, GradeBand } from '../types/api';
+import { useAuth } from '@/contexts/AuthContext';
+import { useRemoveStudentFromCourse } from '@/hooks/useQueries';
+import { courseService } from '@/services/courseService';
+import type { Course, CreateCourseRequest, GradeComponent, GradeBand } from '@/types/api';
 
 const EditCoursePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();

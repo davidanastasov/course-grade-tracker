@@ -1,36 +1,33 @@
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { Button } from "../components/ui/button";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "../components/ui/card";
-import { Input } from "../components/ui/input";
-import { Label } from "../components/ui/label";
-import { Textarea } from "../components/ui/textarea";
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "../components/ui/select";
-import { useAuth } from "../contexts/AuthContext";
-import { assignmentService } from "../services/assignmentService";
-import { courseService } from "../services/courseService";
-import type { Assignment, Course, CreateAssignmentRequest } from "../types/api";
+} from "@/components/ui/select";
+import { useAuth } from "@/contexts/AuthContext";
+import { assignmentService } from "@/services/assignmentService";
+import { courseService } from "@/services/courseService";
+import type { Course, CreateAssignmentRequest } from "@/types/api";
 
-const EditAssignmentPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+const CreateAssignmentPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [courses, setCourses] = useState<Course[]>([]);
-  const [assignment, setAssignment] = useState<Assignment | null>(null);
   const [formData, setFormData] = useState<CreateAssignmentRequest>({
     title: "",
     description: "",
@@ -42,56 +39,31 @@ const EditAssignmentPage: React.FC = () => {
   });
 
   useEffect(() => {
-    const loadData = async () => {
-      if (!id) return;
-
+    const loadCourses = async () => {
       try {
-        const [assignmentData, coursesData] = await Promise.all([
-          assignmentService.getAssignment(id),
-          user?.role === "professor"
-            ? courseService.getMyCourses()
-            : courseService.getCourses(),
-        ]);
-
-        setAssignment(assignmentData);
-        setCourses(coursesData);
-
-        // Pre-fill form with assignment data
-        setFormData({
-          title: assignmentData.title,
-          description: assignmentData.description || "",
-          type: assignmentData.type,
-          maxScore: assignmentData.maxScore,
-          weight: assignmentData.weight,
-          dueDate: assignmentData.dueDate
-            ? new Date(assignmentData.dueDate).toISOString().slice(0, 16)
-            : "",
-          courseId: assignmentData.course.id,
-        });
+        if (user?.role === "professor") {
+          const coursesData = await courseService.getMyCourses();
+          setCourses(coursesData);
+        }
       } catch (error) {
-        console.error("Failed to load assignment or courses:", error);
-        navigate("/assignments");
-      } finally {
-        setLoading(false);
+        console.error("Failed to load courses:", error);
       }
     };
 
-    loadData();
-  }, [id, user, navigate]);
+    loadCourses();
+  }, [user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!id) return;
-
-    setSaving(true);
+    setLoading(true);
 
     try {
-      await assignmentService.updateAssignment(id, formData);
-      navigate(`/assignments/${id}`);
+      await assignmentService.createAssignment(formData);
+      navigate("/assignments");
     } catch (error) {
-      console.error("Failed to update assignment:", error);
+      console.error("Failed to create assignment:", error);
     } finally {
-      setSaving(false);
+      setLoading(false);
     }
   };
 
@@ -106,41 +78,15 @@ const EditAssignmentPage: React.FC = () => {
     }));
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
-      </div>
-    );
-  }
-
-  if (!assignment) {
-    return (
-      <div className="container mx-auto px-4 py-6">
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              Assignment not found
-            </h3>
-            <p className="text-gray-600 mb-4">
-              The assignment you're trying to edit doesn't exist.
-            </p>
-            <Button onClick={() => navigate("/assignments")}>
-              Back to Assignments
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   return (
     <div className="container mx-auto px-4 py-6">
       <div className="max-w-2xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Edit Assignment</h1>
+          <h1 className="text-3xl font-bold text-gray-900">
+            Create Assignment
+          </h1>
           <p className="text-gray-600 mt-2">
-            Update the assignment details below
+            Create a new assignment for your students
           </p>
         </div>
 
@@ -148,7 +94,7 @@ const EditAssignmentPage: React.FC = () => {
           <CardHeader>
             <CardTitle>Assignment Details</CardTitle>
             <CardDescription>
-              Modify the information for your assignment
+              Fill in the information for your new assignment
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -257,13 +203,13 @@ const EditAssignmentPage: React.FC = () => {
               </div>
 
               <div className="flex gap-4 pt-4">
-                <Button type="submit" disabled={saving} className="flex-1">
-                  {saving ? "Saving..." : "Save Changes"}
+                <Button type="submit" disabled={loading} className="flex-1">
+                  {loading ? "Creating..." : "Create Assignment"}
                 </Button>
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => navigate(`/assignments/${id}`)}
+                  onClick={() => navigate("/assignments")}
                   className="flex-1"
                 >
                   Cancel
@@ -277,4 +223,4 @@ const EditAssignmentPage: React.FC = () => {
   );
 };
 
-export default EditAssignmentPage;
+export default CreateAssignmentPage;

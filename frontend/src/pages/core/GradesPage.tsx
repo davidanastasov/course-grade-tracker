@@ -1,35 +1,29 @@
-import React, { useEffect, useState, useCallback } from "react";
-import { Link } from "react-router-dom";
-import { Button } from "../components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "../components/ui/card";
+import React, { useEffect, useState, useCallback } from 'react';
+import { Link } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
-  TableRow,
-} from "../components/ui/table";
+  TableRow
+} from '@/components/ui/table';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
-} from "../components/ui/select";
-import { Input } from "../components/ui/input";
-import { Label } from "../components/ui/label";
-import { useAuth } from "../contexts/AuthContext";
-import { gradeService } from "../services/gradeService";
-import { courseService } from "../services/courseService";
-import { userService } from "../services/userService";
-import type { Grade, Course, User } from "../types/api";
+  SelectValue
+} from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useAuth } from '@/contexts/AuthContext';
+import { gradeService } from '@/services/gradeService';
+import { courseService } from '@/services/courseService';
+import { userService } from '@/services/userService';
+import type { Grade, Course, User } from '@/types/api';
 
 const GradesPage: React.FC = () => {
   const { user } = useAuth();
@@ -37,39 +31,39 @@ const GradesPage: React.FC = () => {
   const [courses, setCourses] = useState<Course[]>([]);
   const [students, setStudents] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedCourse, setSelectedCourse] = useState<string>("all");
-  const [selectedStudent, setSelectedStudent] = useState<string>("all");
+  const [selectedCourse, setSelectedCourse] = useState<string>('all');
+  const [selectedStudent, setSelectedStudent] = useState<string>('all');
 
   // New grade form
   const [newGrade, setNewGrade] = useState({
     score: 0,
-    studentId: "",
-    assignmentId: "",
-    gradeComponentId: "",
+    studentId: '',
+    assignmentId: '',
+    gradeComponentId: ''
   });
 
   useEffect(() => {
     const loadData = async () => {
       try {
-        if (user?.role === "professor") {
+        if (user?.role === 'professor') {
           const [gradesData, coursesData, studentsData] = await Promise.all([
             gradeService.getGrades(),
             courseService.getMyCourses(),
-            userService.getStudents(),
+            userService.getStudents()
           ]);
           setGrades(gradesData);
           setCourses(coursesData);
           setStudents(studentsData);
-        } else if (user?.role === "student") {
+        } else if (user?.role === 'student') {
           const [myGrades, coursesData] = await Promise.all([
             gradeService.getMyGrades(),
-            courseService.getCourses(),
+            courseService.getCourses()
           ]);
           setGrades(myGrades);
           setCourses(coursesData);
         }
       } catch (error) {
-        console.error("Failed to load grades data:", error);
+        console.error('Failed to load grades data:', error);
       } finally {
         setLoading(false);
       }
@@ -82,27 +76,21 @@ const GradesPage: React.FC = () => {
     setLoading(true);
     try {
       let filteredGrades;
-      if (selectedCourse !== "all" && selectedStudent !== "all") {
-        filteredGrades = await gradeService.getGrades(
-          selectedStudent,
-          selectedCourse
-        );
-      } else if (selectedCourse !== "all") {
-        filteredGrades = await gradeService.getGrades(
-          undefined,
-          selectedCourse
-        );
-      } else if (selectedStudent !== "all") {
+      if (selectedCourse !== 'all' && selectedStudent !== 'all') {
+        filteredGrades = await gradeService.getGrades(selectedStudent, selectedCourse);
+      } else if (selectedCourse !== 'all') {
+        filteredGrades = await gradeService.getGrades(undefined, selectedCourse);
+      } else if (selectedStudent !== 'all') {
         filteredGrades = await gradeService.getGrades(selectedStudent);
       } else {
         filteredGrades =
-          user?.role === "student"
+          user?.role === 'student'
             ? await gradeService.getMyGrades()
             : await gradeService.getGrades();
       }
       setGrades(filteredGrades);
     } catch (error) {
-      console.error("Failed to filter grades:", error);
+      console.error('Failed to filter grades:', error);
     } finally {
       setLoading(false);
     }
@@ -110,11 +98,7 @@ const GradesPage: React.FC = () => {
 
   // Auto-apply filters when selections change
   useEffect(() => {
-    if (
-      !loading &&
-      user &&
-      (selectedCourse !== "all" || selectedStudent !== "all")
-    ) {
+    if (!loading && user && (selectedCourse !== 'all' || selectedStudent !== 'all')) {
       handleFilterChange();
     }
   }, [selectedCourse, selectedStudent, loading, user, handleFilterChange]);
@@ -129,22 +113,22 @@ const GradesPage: React.FC = () => {
       // Reset form
       setNewGrade({
         score: 0,
-        studentId: "",
-        assignmentId: "",
-        gradeComponentId: "",
+        studentId: '',
+        assignmentId: '',
+        gradeComponentId: ''
       });
     } catch (error) {
-      console.error("Failed to create grade:", error);
+      console.error('Failed to create grade:', error);
     }
   };
 
   const getGradeColor = (score: number, maxScore: number = 100) => {
     const percentage = (score / maxScore) * 100;
-    if (percentage >= 90) return "text-green-600";
-    if (percentage >= 80) return "text-blue-600";
-    if (percentage >= 70) return "text-yellow-600";
-    if (percentage >= 60) return "text-orange-600";
-    return "text-red-600";
+    if (percentage >= 90) return 'text-green-600';
+    if (percentage >= 80) return 'text-blue-600';
+    if (percentage >= 70) return 'text-yellow-600';
+    if (percentage >= 60) return 'text-orange-600';
+    return 'text-red-600';
   };
 
   const calculateAverage = (courseGrades: Grade[]) => {
@@ -161,7 +145,7 @@ const GradesPage: React.FC = () => {
     );
   }
 
-  const isProfessor = user?.role === "professor";
+  const isProfessor = user?.role === 'professor';
 
   return (
     <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -170,8 +154,8 @@ const GradesPage: React.FC = () => {
           <h1 className="text-3xl font-bold text-gray-900">Grades</h1>
           <p className="text-gray-600 mt-2">
             {isProfessor
-              ? "Manage student grades and track performance"
-              : "View your grades and academic progress"}
+              ? 'Manage student grades and track performance'
+              : 'View your grades and academic progress'}
           </p>
         </div>
       </div>
@@ -204,10 +188,7 @@ const GradesPage: React.FC = () => {
             {isProfessor && (
               <div className="flex-1">
                 <Label htmlFor="student-filter">Student</Label>
-                <Select
-                  value={selectedStudent}
-                  onValueChange={setSelectedStudent}
-                >
+                <Select value={selectedStudent} onValueChange={setSelectedStudent}>
                   <SelectTrigger>
                     <SelectValue placeholder="All students" />
                   </SelectTrigger>
@@ -243,9 +224,7 @@ const GradesPage: React.FC = () => {
                 <Label htmlFor="student">Student</Label>
                 <Select
                   value={newGrade.studentId}
-                  onValueChange={(value) =>
-                    setNewGrade((prev) => ({ ...prev, studentId: value }))
-                  }
+                  onValueChange={(value) => setNewGrade((prev) => ({ ...prev, studentId: value }))}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select student" />
@@ -267,11 +246,11 @@ const GradesPage: React.FC = () => {
                   type="number"
                   min="0"
                   max="100"
-                  value={newGrade.score || ""}
+                  value={newGrade.score || ''}
                   onChange={(e) =>
                     setNewGrade((prev) => ({
                       ...prev,
-                      score: parseFloat(e.target.value) || 0,
+                      score: parseFloat(e.target.value) || 0
                     }))
                   }
                   placeholder="Enter score"
@@ -286,7 +265,7 @@ const GradesPage: React.FC = () => {
                   onChange={(e) =>
                     setNewGrade((prev) => ({
                       ...prev,
-                      assignmentId: e.target.value,
+                      assignmentId: e.target.value
                     }))
                   }
                   placeholder="Assignment ID"
@@ -312,7 +291,7 @@ const GradesPage: React.FC = () => {
           <CardContent>
             <div className="text-2xl font-bold">{grades.length}</div>
             <p className="text-xs text-muted-foreground">
-              {isProfessor ? "Grades recorded" : "Your grades"}
+              {isProfessor ? 'Grades recorded' : 'Your grades'}
             </p>
           </CardContent>
         </Card>
@@ -323,7 +302,7 @@ const GradesPage: React.FC = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {grades.length > 0 ? calculateAverage(grades) : "0"}%
+              {grades.length > 0 ? calculateAverage(grades) : '0'}%
             </div>
             <p className="text-xs text-muted-foreground">Overall performance</p>
           </CardContent>
@@ -336,7 +315,7 @@ const GradesPage: React.FC = () => {
           <CardContent>
             <div className="text-2xl font-bold">{courses.length}</div>
             <p className="text-xs text-muted-foreground">
-              {isProfessor ? "Teaching" : "Enrolled in"}
+              {isProfessor ? 'Teaching' : 'Enrolled in'}
             </p>
           </CardContent>
         </Card>
@@ -347,21 +326,19 @@ const GradesPage: React.FC = () => {
         <CardHeader>
           <CardTitle>Grade Records</CardTitle>
           <CardDescription>
-            {selectedCourse !== "all" || selectedStudent !== "all"
-              ? "Filtered grade records"
-              : "All grade records"}
+            {selectedCourse !== 'all' || selectedStudent !== 'all'
+              ? 'Filtered grade records'
+              : 'All grade records'}
           </CardDescription>
         </CardHeader>
         <CardContent>
           {grades.length === 0 ? (
             <div className="text-center py-12">
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                No grades found
-              </h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No grades found</h3>
               <p className="text-gray-600">
                 {isProfessor
-                  ? "Start by adding some grades for your students"
-                  : "No grades have been recorded yet"}
+                  ? 'Start by adding some grades for your students'
+                  : 'No grades have been recorded yet'}
               </p>
             </div>
           ) : (
@@ -384,9 +361,7 @@ const GradesPage: React.FC = () => {
                         {grade.student.firstName} {grade.student.lastName}
                       </TableCell>
                     )}
-                    <TableCell>
-                      {grade.assignment?.course.code || "N/A"}
-                    </TableCell>
+                    <TableCell>{grade.assignment?.course.code || 'N/A'}</TableCell>
                     <TableCell>
                       {grade.assignment ? (
                         <Link
@@ -396,17 +371,13 @@ const GradesPage: React.FC = () => {
                           {grade.assignment.title}
                         </Link>
                       ) : (
-                        grade.gradeComponent?.name || "Manual Entry"
+                        grade.gradeComponent?.name || 'Manual Entry'
                       )}
                     </TableCell>
                     <TableCell>
-                      <span className={getGradeColor(grade.score)}>
-                        {grade.score}%
-                      </span>
+                      <span className={getGradeColor(grade.score)}>{grade.score}%</span>
                     </TableCell>
-                    <TableCell>
-                      {new Date(grade.createdAt).toLocaleDateString()}
-                    </TableCell>
+                    <TableCell>{new Date(grade.createdAt).toLocaleDateString()}</TableCell>
                     <TableCell>
                       {isProfessor && (
                         <Button variant="outline" size="sm">

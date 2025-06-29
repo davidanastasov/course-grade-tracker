@@ -1,10 +1,10 @@
 import React from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Button } from '../components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
-import { Badge } from '../components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
-import { useAuth } from '../contexts/AuthContext';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   useCourse,
   useCourseStudents,
@@ -13,7 +13,7 @@ import {
   useGradesSummary,
   useMyCourses,
   useEnrollInCourse
-} from '../hooks/useQueries';
+} from '@/hooks/useQueries';
 import {
   BookOpen,
   Users,
@@ -26,7 +26,7 @@ import {
   Calendar
 } from 'lucide-react';
 import { toast } from 'sonner';
-import type { Assignment, User, GradeComponent, GradeBand, Course } from '../types/api';
+import type { Assignment, User, GradeComponent, GradeBand, Course } from '@/types/api';
 
 const CourseDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
