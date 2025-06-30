@@ -5,6 +5,7 @@ import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 
 import { DatabaseConfig } from './config/database.config';
+import { validate } from './config/validation.config';
 import { AppController } from './app.controller';
 import { AuthModule } from './modules/auth/auth.module';
 import { UserModule } from './modules/user/user.module';
@@ -17,7 +18,8 @@ import { HealthModule } from './modules/health/health.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: '.env'
+      envFilePath: '.env',
+      validate
     }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
