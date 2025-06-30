@@ -5,17 +5,14 @@ module.exports = {
   parserOptions: {
     project: path.join(__dirname, 'tsconfig.json'),
     tsconfigRootDir: __dirname,
-    sourceType: 'module',
+    sourceType: 'module'
   },
   plugins: ['@typescript-eslint/eslint-plugin'],
-  extends: [
-    'plugin:@typescript-eslint/recommended',
-    'plugin:prettier/recommended',
-  ],
+  extends: ['plugin:@typescript-eslint/recommended', 'plugin:prettier/recommended'],
   root: true,
   env: {
     node: true,
-    jest: true,
+    jest: true
   },
   ignorePatterns: ['.eslintrc.js', 'dist/', 'node_modules/'],
   rules: {
@@ -28,6 +25,6 @@ module.exports = {
     '@typescript-eslint/no-inferrable-types': 'off',
     'prefer-const': 'error',
     'no-console': 'warn',
-    'no-debugger': 'error',
-  },
+    'no-debugger': 'error'
+  }
 };

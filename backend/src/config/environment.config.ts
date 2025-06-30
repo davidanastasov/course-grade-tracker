@@ -34,6 +34,10 @@ export class EnvironmentVariables {
   @IsString()
   DATABASE_NAME: string;
 
+  @IsString()
+  @IsOptional()
+  DATABASE_SSL: string = 'false'; // Use 'true' for production
+
   // JWT configuration
   @IsString()
   JWT_SECRET: string;
