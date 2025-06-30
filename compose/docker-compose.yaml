@@ -1,0 +1,67 @@
+name: course-grade-tracker
+
+services:
+  frontend:
+    build:
+      context: ../frontend
+      args:
+        - VITE_API_BASE_URL=http://localhost:3000/api
+    ports:
+      - 5000:80
+    networks:
+      - public_network
+    restart: unless-stopped
+
+  backend:
+    build: ../backend
+    ports:
+      - 3000:3000
+    env_file:
+      - ./.env.shared
+      - ./.env.backend
+    environment:
+      - PORT=3000
+      - DATABASE_HOST=db
+      - DATABASE_PORT=5432
+      - DATABASE_USERNAME=${POSTGRES_USER:-postgres}
+      - DATABASE_NAME=${POSTGRES_DB:-course_grade_tracker}
+      - DATABASE_PASSWORD=${POSTGRES_PASSWORD:-password}
+    volumes:
+      - uploads_data:/app/uploads
+    networks:
+      - public_network
+      - private_network
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: postgres:latest
+    env_file:
+      - ./.env.shared
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_DB=${POSTGRES_DB:-course_grade_tracker}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks:
+      - private_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      start_period: 5s
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  db_data:
+  uploads_data:
+
+networks:
+  public_network:
+    driver: bridge
+  private_network:
+    internal: true
