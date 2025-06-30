@@ -24,7 +24,7 @@ module.exports = {
     '@typescript-eslint/no-empty-function': 'warn',
     '@typescript-eslint/no-inferrable-types': 'off',
     'prefer-const': 'error',
-    'no-console': 'warn',
+    'no-console': 'off',
     'no-debugger': 'error'
   }
 };

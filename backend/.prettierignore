@@ -1,4 +1,3 @@
-**/*.html
-**/*.css
-**/*.js
-public/
+node_modules/
+dist/
+**/migrations/

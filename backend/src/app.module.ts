@@ -5,6 +5,7 @@ import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 
 import { DatabaseConfig } from './config/database.config';
+import { DatabaseInitService } from './config/database-init.service';
 import { validate } from './config/validation.config';
 import { AppController } from './app.controller';
 import { AuthModule } from './modules/auth/auth.module';
@@ -13,6 +14,7 @@ import { CourseModule } from './modules/course/course.module';
 import { AssignmentModule } from './modules/assignment/assignment.module';
 import { GradeModule } from './modules/grade/grade.module';
 import { HealthModule } from './modules/health/health.module';
+import { SeedModule } from './seeds/seed.module';
 
 @Module({
   imports: [
@@ -34,8 +36,10 @@ import { HealthModule } from './modules/health/health.module';
     CourseModule,
     AssignmentModule,
     GradeModule,
-    HealthModule
+    HealthModule,
+    SeedModule
   ],
-  controllers: [AppController]
+  controllers: [AppController],
+  providers: [DatabaseInitService]
 })
 export class AppModule {}

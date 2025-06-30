@@ -35,6 +35,7 @@ export class DatabaseConfig implements TypeOrmOptionsFactory {
         AssignmentFile,
         Grade
       ],
+      migrations: ['**/migrations/*.{js,ts}'],
       synchronize: this.configService.get<string>('NODE_ENV') === 'development',
       logging: this.configService.get<string>('NODE_ENV') === 'development',
       ssl:
@@ -63,6 +64,6 @@ export const AppDataSource = new DataSource({
     AssignmentFile,
     Grade
   ],
-  migrations: ['src/migrations/*.ts'],
+  migrations: ['**/migrations/*.{js,ts}'],
   synchronize: false
 });
