@@ -13,6 +13,15 @@ jobs:
   check-frontend:
     runs-on: ubuntu-latest
     name: Check Frontend
+    strategy:
+      matrix:
+        include:
+          - environment: staging
+            branch: dev
+          - environment: production
+            branch: master
+    if: github.ref == 'refs/heads/' + matrix.branch
+    environment: ${{ matrix.environment }}
     defaults:
       run:
         working-directory: frontend
@@ -37,6 +46,8 @@ jobs:
         run: npm run lint:check
 
       - name: Build app
+        env:
+          VITE_API_BASE_URL: ${{ vars.API_BASE_URL }}
         run: npm run build
 
   deploy-frontend:
@@ -45,10 +56,12 @@ jobs:
     name: Deploy Frontend
     strategy:
       matrix:
-        environment: [staging, production]
-    if: >
-      (matrix.environment == 'staging' && github.ref == 'refs/heads/dev') ||
-      (matrix.environment == 'production' && github.ref == 'refs/heads/master')
+        include:
+          - environment: staging
+            branch: dev
+          - environment: production
+            branch: master
+    if: github.ref == 'refs/heads/' + matrix.branch
     environment: ${{ matrix.environment }}
     defaults:
       run:
