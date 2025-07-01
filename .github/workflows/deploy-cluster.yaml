@@ -1,0 +1,41 @@
+name: Deploy Cluster to DigitalOcean Kubernetes
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+    paths:
+      - "k8s/**"
+
+jobs:
+  deploy-cluster:
+    runs-on: ubuntu-latest
+    name: Deploy to DigitalOcean Kubernetes
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install doctl
+        run: |
+          curl -sL https://github.com/digitalocean/doctl/releases/latest/download/doctl-$(uname -s)-$(uname -m).tar.gz | tar -xz
+          sudo mv doctl /usr/local/bin
+
+      - name: Authenticate doctl
+        env:
+          DIGITALOCEAN_ACCESS_TOKEN: ${{ secrets.DO_API_TOKEN }}
+        run: doctl auth init -t $DIGITALOCEAN_ACCESS_TOKEN
+
+      - name: Get kubeconfig
+        run: doctl kubernetes cluster kubeconfig save course-grade-tracker-cluster
+
+      - name: Deploy manifests
+        run: |
+          kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+          kubectl apply -f k8s/namespace.yaml
+          kubectl apply -f k8s/configmap.yaml
+          kubectl apply -f k8s/secret.yaml
+          kubectl apply -f k8s/postgres/
+          kubectl apply -f k8s/backend/
+          kubectl apply -f k8s/frontend/
+          kubectl apply -f k8s/ingress.yaml
