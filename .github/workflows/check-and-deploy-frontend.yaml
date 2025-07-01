@@ -71,3 +71,5 @@ jobs:
   deploy-cluster:
     needs: [deploy-frontend]
     uses: ./.github/workflows/cluster-deployer.yaml
+    secrets:
+      DO_API_TOKEN: ${{ secrets.DO_API_TOKEN }}
