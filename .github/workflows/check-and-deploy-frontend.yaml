@@ -20,12 +20,15 @@ jobs:
             branch: dev
           - environment: production
             branch: master
-    if: github.ref == format('refs/heads/{0}', matrix.branch)
     environment: ${{ matrix.environment }}
     defaults:
       run:
         working-directory: frontend
     steps:
+      - name: Skip if branch does not match
+        if: github.ref != format('refs/heads/{0}', matrix.branch)
+        run: echo "Skipping this matrix job because branch does not match" && exit 0
+
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -61,12 +64,15 @@ jobs:
             branch: dev
           - environment: production
             branch: master
-    if: github.ref == format('refs/heads/{0}', matrix.branch)
     environment: ${{ matrix.environment }}
     defaults:
       run:
         working-directory: frontend
     steps:
+      - name: Skip if branch does not match
+        if: github.ref != format('refs/heads/{0}', matrix.branch)
+        run: echo "Skipping this matrix job because branch does not match" && exit 0
+
       - name: Checkout
         uses: actions/checkout@v4
         
