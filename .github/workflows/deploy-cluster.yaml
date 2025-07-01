@@ -12,14 +12,17 @@ jobs:
   deploy-cluster:
     runs-on: ubuntu-latest
     name: Deploy to DigitalOcean Kubernetes
+    environment: production
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Install doctl
         run: |
-          curl -sL https://github.com/digitalocean/doctl/releases/latest/download/doctl-$(uname -s)-$(uname -m).tar.gz | tar -xz
+          curl -LO https://github.com/digitalocean/doctl/releases/download/v1.131.0/doctl-1.131.0-linux-amd64.tar.gz
+          tar -xzf doctl-1.131.0-linux-amd64.tar.gz
           sudo mv doctl /usr/local/bin
+          rm doctl-1.131.0-linux-amd64.tar.gz
 
       - name: Authenticate doctl
         env:
