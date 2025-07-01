@@ -10,4 +10,4 @@ on:
 
 jobs:
   deploy-cluster:
-    uses: ./.github/workflows/reusable/cluster-deployer.yaml
+    uses: ./.github/workflows/cluster-deployer.yaml
