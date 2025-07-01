@@ -43,6 +43,13 @@ jobs:
     needs: check-frontend
     runs-on: ubuntu-latest
     name: Deploy Frontend
+    strategy:
+      matrix:
+        environment: [staging, production]
+    if: >
+      (matrix.environment == 'staging' && github.ref == 'refs/heads/dev') ||
+      (matrix.environment == 'production' && github.ref == 'refs/heads/master')
+    environment: ${{ matrix.environment }}
     defaults:
       run:
         working-directory: frontend
@@ -55,20 +62,11 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      
-      - name: Set tag
-        id: tag
+
+      - name: Build Docker image
         run: |
-          BRANCH_NAME="${GITHUB_REF##*/}"
-          TAG="staging-latest"
-          if [ "$BRANCH_NAME" = "master" ]; then
-            TAG="production-latest"
-          fi
-          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          docker build --build-arg VITE_API_BASE_URL=${{ vars.API_BASE_URL }} \
+            -t ${{ secrets.DOCKERHUB_ORG }}/${{ vars.DOCKER_IMAGE_NAME }}:${{ vars.DOCKER_IMAGE_TAG }} .
 
-      - name: Build docker image
-        run: docker build --build-arg VITE_BASE_API_URL=https://api.example.com \
-            -t ${{ secrets.DOCKERHUB_ORG }}/course-grade-tracker-frontend:${{ steps.tag.outputs.tag }} .
-
-      - name: Push docker image
-        run: docker push ${{ secrets.DOCKERHUB_ORG }}/course-grade-tracker-frontend:${{ steps.tag.outputs.tag }}
+      - name: Push Docker image
+        run: docker push ${{ secrets.DOCKERHUB_ORG }}/${{ vars.DOCKER_IMAGE_NAME }}:${{ vars.DOCKER_IMAGE_TAG }}
