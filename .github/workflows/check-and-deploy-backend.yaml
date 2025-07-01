@@ -74,4 +74,4 @@ jobs:
 
   deploy-cluster:
     needs: [deploy-backend]
-    uses: ./.github/workflows/deploy-cluster.yml
+    uses: ./.github/workflows/deploy-cluster.yaml
