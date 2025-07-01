@@ -1,47 +1,54 @@
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  CreateDateColumn,
-  UpdateDateColumn,
-  ManyToOne,
-  Unique
-} from 'typeorm';
-import { User } from '../../user/entities/user.entity';
-import { GradeComponent } from '../../course/entities/grade-component.entity';
-import { Course } from '../../course/entities/course.entity';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Document, Types } from 'mongoose';
 
-@Entity('component_scores')
-@Unique(['student', 'gradeComponent'])
-export class ComponentScore {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
-
-  @Column({ type: 'decimal', precision: 8, scale: 2 })
+@Schema({ timestamps: true, collection: 'component_scores' })
+export class ComponentScore extends Document {
+  @Prop({ required: true })
   pointsEarned: number;
 
-  @Column({ type: 'text', nullable: true })
-  feedback: string;
+  @Prop()
+  feedback?: string;
 
-  @Column({ default: false })
+  @Prop({ default: false })
   isSubmitted: boolean;
 
-  @Column({ default: false })
+  @Prop({ default: false })
   isGraded: boolean;
 
-  @CreateDateColumn()
-  createdAt: Date;
+  @Prop({ default: Date.now })
+  submittedAt?: Date;
 
-  @UpdateDateColumn()
-  updatedAt: Date;
+  @Prop()
+  gradedAt?: Date;
 
   // Relationships
-  @ManyToOne(() => User, { eager: true })
-  student: User;
+  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
+  student: Types.ObjectId;
 
-  @ManyToOne(() => GradeComponent, { eager: true })
-  gradeComponent: GradeComponent;
+  @Prop({ type: Types.ObjectId, ref: 'GradeComponent', required: true })
+  gradeComponent: Types.ObjectId;
 
-  @ManyToOne(() => Course)
-  course: Course;
+  @Prop({ type: Types.ObjectId, ref: 'Course', required: true })
+  course: Types.ObjectId;
+
+  // Timestamps are automatically added by Mongoose
+  createdAt?: Date;
+  updatedAt?: Date;
 }
+
+export const ComponentScoreSchema = SchemaFactory.createForClass(ComponentScore);
+
+// Transform _id to id in JSON output
+ComponentScoreSchema.set('toJSON', {
+  transform: function (doc, ret) {
+    ret.id = ret._id;
+    delete ret._id;
+    delete ret.__v;
+    return ret;
+  }
+});
+
+// Add compound index for student-gradeComponent uniqueness
+ComponentScoreSchema.index({ student: 1, gradeComponent: 1 }, { unique: true });
+
+export type ComponentScoreDocument = ComponentScore & Document;

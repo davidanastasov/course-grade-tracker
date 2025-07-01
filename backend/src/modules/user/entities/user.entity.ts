@@ -1,16 +1,6 @@
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  CreateDateColumn,
-  UpdateDateColumn,
-  OneToMany
-} from 'typeorm';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Document, Types } from 'mongoose';
 import { Exclude } from 'class-transformer';
-import { Enrollment } from './enrollment.entity';
-import { Course } from '../../course/entities/course.entity';
-import { Assignment } from '../../assignment/entities/assignment.entity';
-import { Grade } from '../../grade/entities/grade.entity';
 
 export enum UserRole {
   STUDENT = 'student',
@@ -18,53 +8,76 @@ export enum UserRole {
   ADMIN = 'admin'
 }
 
-@Entity('users')
-export class User {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
-
-  @Column({ unique: true })
+@Schema({ timestamps: true, collection: 'users' })
+export class User extends Document {
+  @Prop({ required: true, unique: true })
   username: string;
 
-  @Column({ unique: true })
+  @Prop({ required: true, unique: true })
   email: string;
 
-  @Column()
+  @Prop({ required: true })
   @Exclude()
   password: string;
 
-  @Column()
+  @Prop({ required: true })
   firstName: string;
 
-  @Column()
+  @Prop({ required: true })
   lastName: string;
 
-  @Column({
-    type: 'enum',
-    enum: UserRole,
+  @Prop({
+    type: String,
+    enum: Object.values(UserRole),
     default: UserRole.STUDENT
   })
   role: UserRole;
 
-  @Column({ default: true })
+  @Prop({ default: true })
   isActive: boolean;
 
-  @CreateDateColumn()
-  createdAt: Date;
+  @Prop()
+  lastLoginAt?: Date;
 
-  @UpdateDateColumn()
-  updatedAt: Date;
+  @Prop()
+  profileImageUrl?: string;
 
-  // Relationships
-  @OneToMany(() => Enrollment, (enrollment) => enrollment.student)
-  enrollments: Enrollment[];
+  // Virtual properties for relationships
+  enrollments?: Types.ObjectId[];
+  courses?: Types.ObjectId[];
+  assignments?: Types.ObjectId[];
+  grades?: Types.ObjectId[];
 
-  @OneToMany(() => Course, (course) => course.professor)
-  courses: Course[];
-
-  @OneToMany(() => Assignment, (assignment) => assignment.createdBy)
-  assignments: Assignment[];
-
-  @OneToMany(() => Grade, (grade) => grade.student)
-  grades: Grade[];
+  // Timestamps are automatically added by Mongoose
+  createdAt?: Date;
+  updatedAt?: Date;
 }
+
+export const UserSchema = SchemaFactory.createForClass(User);
+
+// Add virtual populate for relationships
+UserSchema.virtual('enrollments', {
+  ref: 'Enrollment',
+  localField: '_id',
+  foreignField: 'student'
+});
+
+UserSchema.virtual('courses', {
+  ref: 'Course',
+  localField: '_id',
+  foreignField: 'professor'
+});
+
+UserSchema.virtual('assignments', {
+  ref: 'Assignment',
+  localField: '_id',
+  foreignField: 'createdBy'
+});
+
+UserSchema.virtual('grades', {
+  ref: 'Grade',
+  localField: '_id',
+  foreignField: 'student'
+});
+
+export type UserDocument = User & Document;

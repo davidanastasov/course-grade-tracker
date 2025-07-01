@@ -1,10 +1,10 @@
-import { IsNumber, IsOptional, IsString, IsUUID, IsBoolean, Min, Max } from 'class-validator';
+import { IsNumber, IsOptional, IsString, IsMongoId, IsBoolean, Min } from 'class-validator';
 
 export class CreateGradeDto {
-  @IsUUID()
+  @IsMongoId()
   assignmentId: string;
 
-  @IsUUID()
+  @IsMongoId()
   courseId: string;
 
   @IsNumber()

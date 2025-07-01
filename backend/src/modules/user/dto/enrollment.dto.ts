@@ -1,14 +1,14 @@
-import { IsUUID } from 'class-validator';
+import { IsMongoId } from 'class-validator';
 
 export class EnrollmentDto {
-  @IsUUID()
+  @IsMongoId()
   studentId: string;
 
-  @IsUUID()
+  @IsMongoId()
   courseId: string;
 }
 
 export class SelfEnrollmentDto {
-  @IsUUID()
+  @IsMongoId()
   courseId: string;
 }

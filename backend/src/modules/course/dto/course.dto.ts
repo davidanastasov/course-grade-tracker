@@ -9,7 +9,7 @@ import {
   IsEnum,
   IsBoolean
 } from 'class-validator';
-import { Transform, Type } from 'class-transformer';
+import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { ComponentType } from '../entities/grade-component.entity';
 

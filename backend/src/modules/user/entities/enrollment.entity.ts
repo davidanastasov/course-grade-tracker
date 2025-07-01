@@ -1,41 +1,58 @@
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  ManyToOne,
-  CreateDateColumn,
-  UpdateDateColumn,
-  Column
-} from 'typeorm';
-import { User } from './user.entity';
-import { Course } from '../../course/entities/course.entity';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Document, Types } from 'mongoose';
 
 export enum EnrollmentStatus {
+  PENDING = 'pending',
   ACTIVE = 'active',
-  COMPLETED = 'completed',
-  DROPPED = 'dropped'
+  DROPPED = 'dropped',
+  COMPLETED = 'completed'
 }
 
-@Entity('enrollments')
-export class Enrollment {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+@Schema({ timestamps: true, collection: 'enrollments' })
+export class Enrollment extends Document {
+  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
+  student: Types.ObjectId;
 
-  @ManyToOne(() => User, (user) => user.enrollments)
-  student: User;
+  @Prop({ type: Types.ObjectId, ref: 'Course', required: true })
+  course: Types.ObjectId;
 
-  @ManyToOne(() => Course, (course) => course.enrollments)
-  course: Course;
-
-  @Column({
-    type: 'enum',
-    enum: EnrollmentStatus,
-    default: EnrollmentStatus.ACTIVE
+  @Prop({
+    type: String,
+    enum: Object.values(EnrollmentStatus),
+    default: EnrollmentStatus.PENDING
   })
   status: EnrollmentStatus;
 
-  @CreateDateColumn()
-  enrolledAt: Date;
+  @Prop()
+  enrolledAt?: Date;
 
-  @UpdateDateColumn()
-  updatedAt: Date;
+  @Prop()
+  droppedAt?: Date;
+
+  @Prop()
+  completedAt?: Date;
+
+  @Prop()
+  finalGrade?: string;
+
+  // Timestamps are automatically added by Mongoose
+  createdAt?: Date;
+  updatedAt?: Date;
 }
+
+export const EnrollmentSchema = SchemaFactory.createForClass(Enrollment);
+
+// Transform _id to id in JSON output
+EnrollmentSchema.set('toJSON', {
+  transform: function (doc, ret) {
+    ret.id = ret._id;
+    delete ret._id;
+    delete ret.__v;
+    return ret;
+  }
+});
+
+// Add compound index for student-course uniqueness
+EnrollmentSchema.index({ student: 1, course: 1 }, { unique: true });
+
+export type EnrollmentDocument = Enrollment & Document;

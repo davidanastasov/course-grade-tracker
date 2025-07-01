@@ -5,34 +5,37 @@ import {
   ConflictException,
   BadRequestException
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
 
-import { ComponentScore } from './entities/component-score.entity';
-import { GradeComponent } from '../course/entities/grade-component.entity';
-import { Course } from '../course/entities/course.entity';
-import { User, UserRole } from '../user/entities/user.entity';
-import { Enrollment, EnrollmentStatus } from '../user/entities/enrollment.entity';
+import { ComponentScore, ComponentScoreDocument } from './entities/component-score.entity';
+import { GradeComponent, GradeComponentDocument } from '../course/entities/grade-component.entity';
+import { Course, CourseDocument } from '../course/entities/course.entity';
+import { User, UserDocument, UserRole } from '../user/entities/user.entity';
+import {
+  Enrollment,
+  EnrollmentDocument,
+  EnrollmentStatus
+} from '../user/entities/enrollment.entity';
 import {
   CreateComponentScoreDto,
   UpdateComponentScoreDto,
-  ComponentScoreResponseDto,
-  ComponentProgressDto
+  ComponentScoreResponseDto
 } from './dto/component-score.dto';
 
 @Injectable()
 export class ComponentScoreService {
   constructor(
-    @InjectRepository(ComponentScore)
-    private componentScoreRepository: Repository<ComponentScore>,
-    @InjectRepository(GradeComponent)
-    private gradeComponentRepository: Repository<GradeComponent>,
-    @InjectRepository(Course)
-    private courseRepository: Repository<Course>,
-    @InjectRepository(User)
-    private userRepository: Repository<User>,
-    @InjectRepository(Enrollment)
-    private enrollmentRepository: Repository<Enrollment>
+    @InjectModel(ComponentScore.name)
+    private componentScoreModel: Model<ComponentScoreDocument>,
+    @InjectModel(GradeComponent.name)
+    private gradeComponentModel: Model<GradeComponentDocument>,
+    @InjectModel(Course.name)
+    private courseModel: Model<CourseDocument>,
+    @InjectModel(User.name)
+    private userModel: Model<UserDocument>,
+    @InjectModel(Enrollment.name)
+    private enrollmentModel: Model<EnrollmentDocument>
   ) {}
 
   async createComponentScore(
@@ -42,89 +45,215 @@ export class ComponentScoreService {
     const { gradeComponentId, courseId, pointsEarned, ...scoreData } = createComponentScoreDto;
 
     // Verify grade component exists
-    const gradeComponent = await this.gradeComponentRepository.findOne({
-      where: { id: gradeComponentId },
-      relations: ['course']
-    });
-
+    const gradeComponent = await this.gradeComponentModel
+      .findById(gradeComponentId)
+      .populate('course');
     if (!gradeComponent) {
       throw new NotFoundException('Grade component not found');
     }
 
     // Verify course exists
-    const course = await this.courseRepository.findOne({
-      where: { id: courseId }
-    });
-
+    const course = await this.courseModel.findById(courseId);
     if (!course) {
       throw new NotFoundException('Course not found');
     }
 
-    // Check if grade component belongs to the course
-    if (gradeComponent.course.id !== courseId) {
-      throw new ForbiddenException('Grade component does not belong to the specified course');
-    }
-
-    // Verify student is enrolled in the course
-    const enrollment = await this.enrollmentRepository.findOne({
-      where: {
-        student: { id: student.id },
-        course: { id: courseId },
-        status: EnrollmentStatus.ACTIVE
-      }
+    // Verify student is enrolled
+    const enrollment = await this.enrollmentModel.findOne({
+      student: student._id,
+      course: courseId,
+      status: EnrollmentStatus.ACTIVE
     });
-
     if (!enrollment) {
       throw new ForbiddenException('You are not enrolled in this course');
     }
 
-    // Validate points earned doesn't exceed total points
-    if (pointsEarned > gradeComponent.totalPoints) {
+    // Check for existing score
+    const existing = await this.componentScoreModel.findOne({
+      student: student._id,
+      gradeComponent: gradeComponentId
+    });
+    if (existing) {
+      throw new ConflictException('Component score already exists');
+    }
+
+    // Validate points earned
+    if (pointsEarned < 0 || pointsEarned > gradeComponent.totalPoints) {
       throw new BadRequestException(
-        `Points earned (${pointsEarned}) cannot exceed total points (${gradeComponent.totalPoints})`
+        `Points earned must be between 0 and ${gradeComponent.totalPoints}`
       );
     }
 
-    // Check if score already exists for this student and grade component
-    const existingScore = await this.componentScoreRepository.findOne({
-      where: {
-        student: { id: student.id },
-        gradeComponent: { id: gradeComponentId }
-      }
-    });
-
-    if (existingScore) {
-      throw new ConflictException('Score already exists for this grade component');
-    }
-
-    // Create component score
-    const componentScore = this.componentScoreRepository.create({
+    const componentScore = new this.componentScoreModel({
+      student: student._id,
+      gradeComponent: gradeComponentId,
+      course: courseId,
       pointsEarned,
-      ...scoreData,
-      student,
-      gradeComponent,
-      course
+      ...scoreData
     });
 
-    return this.componentScoreRepository.save(componentScore);
+    return componentScore.save();
   }
 
-  async findByStudent(studentId: string): Promise<ComponentScoreResponseDto[]> {
-    const scores = await this.componentScoreRepository.find({
-      where: { student: { id: studentId } },
-      relations: ['student', 'gradeComponent', 'course'],
-      order: { createdAt: 'DESC' }
-    });
+  async findAll(user: User): Promise<ComponentScoreResponseDto[]> {
+    let scores: ComponentScore[];
+
+    if (user.role === UserRole.ADMIN) {
+      scores = await this.componentScoreModel
+        .find()
+        .populate('student gradeComponent course')
+        .sort({ createdAt: -1 });
+    } else if (user.role === UserRole.PROFESSOR) {
+      // Find courses taught by this professor
+      const courses = await this.courseModel.find({ professor: user._id });
+      const courseIds = courses.map((course) => course._id);
+
+      scores = await this.componentScoreModel
+        .find({ course: { $in: courseIds } })
+        .populate('student gradeComponent course')
+        .sort({ createdAt: -1 });
+    } else {
+      scores = await this.componentScoreModel
+        .find({ student: user._id })
+        .populate('student gradeComponent course')
+        .sort({ createdAt: -1 });
+    }
 
     return scores.map(this.mapToResponseDto);
   }
 
-  async findByCourse(courseId: string): Promise<ComponentScoreResponseDto[]> {
-    const scores = await this.componentScoreRepository.find({
-      where: { course: { id: courseId } },
-      relations: ['student', 'gradeComponent', 'course'],
-      order: { createdAt: 'DESC' }
-    });
+  async findById(id: string, user: User): Promise<ComponentScoreResponseDto> {
+    const score = await this.componentScoreModel
+      .findById(id)
+      .populate('student gradeComponent course');
+
+    if (!score) {
+      throw new NotFoundException('Component score not found');
+    }
+
+    // Check authorization
+    let hasAccess = false;
+    if (user.role === UserRole.ADMIN) {
+      hasAccess = true;
+    } else if (user.role === UserRole.PROFESSOR) {
+      hasAccess = (score.course as any).professor._id.toString() === user._id.toString();
+    } else {
+      hasAccess = score.student._id.toString() === user._id.toString();
+    }
+
+    if (!hasAccess) {
+      throw new ForbiddenException('You do not have access to this component score');
+    }
+
+    return this.mapToResponseDto(score);
+  }
+
+  async updateComponentScore(
+    id: string,
+    updateComponentScoreDto: UpdateComponentScoreDto,
+    user: User
+  ): Promise<ComponentScore> {
+    const score = await this.componentScoreModel.findById(id).populate('gradeComponent course');
+
+    if (!score) {
+      throw new NotFoundException('Component score not found');
+    }
+
+    // Only professors can update scores
+    if (user.role !== UserRole.ADMIN && user.role !== UserRole.PROFESSOR) {
+      throw new ForbiddenException('Only professors can update component scores');
+    }
+
+    if (user.role === UserRole.PROFESSOR) {
+      if ((score.course as any).professor._id.toString() !== user._id.toString()) {
+        throw new ForbiddenException('You can only update scores for your own courses');
+      }
+    }
+
+    // Validate points earned if provided
+    const { pointsEarned } = updateComponentScoreDto;
+    if (pointsEarned !== undefined) {
+      const gradeComponent = score.gradeComponent as any;
+      if (pointsEarned < 0 || pointsEarned > gradeComponent.totalPoints) {
+        throw new BadRequestException(
+          `Points earned must be between 0 and ${gradeComponent.totalPoints}`
+        );
+      }
+    }
+
+    Object.assign(score, updateComponentScoreDto);
+    return score.save();
+  }
+
+  async deleteComponentScore(id: string, user: User): Promise<void> {
+    const score = await this.componentScoreModel.findById(id).populate('course');
+
+    if (!score) {
+      throw new NotFoundException('Component score not found');
+    }
+
+    // Only professors can delete scores
+    if (user.role !== UserRole.ADMIN && user.role !== UserRole.PROFESSOR) {
+      throw new ForbiddenException('Only professors can delete component scores');
+    }
+
+    if (user.role === UserRole.PROFESSOR) {
+      if ((score.course as any).professor._id.toString() !== user._id.toString()) {
+        throw new ForbiddenException('You can only delete scores for your own courses');
+      }
+    }
+
+    await this.componentScoreModel.findByIdAndDelete(id);
+  }
+
+  private mapToResponseDto(score: ComponentScore): ComponentScoreResponseDto {
+    return {
+      id: score._id?.toString() || (score as any).id?.toString(),
+      pointsEarned: score.pointsEarned,
+      feedback: score.feedback || '',
+      isSubmitted: score.isSubmitted !== undefined ? score.isSubmitted : true,
+      isGraded: score.isGraded !== undefined ? score.isGraded : false,
+      createdAt: (score as any).createdAt,
+      updatedAt: (score as any).updatedAt,
+      student:
+        score.student && typeof score.student === 'object'
+          ? {
+              id: (score.student as any)._id?.toString() || (score.student as any).id?.toString(),
+              firstName: (score.student as any).firstName,
+              lastName: (score.student as any).lastName,
+              username: (score.student as any).username
+            }
+          : undefined,
+      gradeComponent:
+        score.gradeComponent && typeof score.gradeComponent === 'object'
+          ? {
+              id:
+                (score.gradeComponent as any)._id?.toString() ||
+                (score.gradeComponent as any).id?.toString(),
+              name: (score.gradeComponent as any).name,
+              category: (score.gradeComponent as any).category,
+              weight: (score.gradeComponent as any).weight,
+              totalPoints: (score.gradeComponent as any).totalPoints,
+              minimumScore: (score.gradeComponent as any).minimumScore,
+              isMandatory: (score.gradeComponent as any).isMandatory
+            }
+          : undefined,
+      course:
+        score.course && typeof score.course === 'object'
+          ? {
+              id: (score.course as any)._id?.toString() || (score.course as any).id?.toString(),
+              code: (score.course as any).code,
+              name: (score.course as any).name
+            }
+          : undefined
+    };
+  }
+
+  async findByStudent(studentId: string): Promise<ComponentScoreResponseDto[]> {
+    const scores = await this.componentScoreModel
+      .find({ student: studentId })
+      .populate('gradeComponent course')
+      .sort({ createdAt: -1 });
 
     return scores.map(this.mapToResponseDto);
   }
@@ -133,165 +262,50 @@ export class ComponentScoreService {
     studentId: string,
     courseId: string
   ): Promise<ComponentScoreResponseDto[]> {
-    const scores = await this.componentScoreRepository.find({
-      where: {
-        student: { id: studentId },
-        course: { id: courseId }
-      },
-      relations: ['student', 'gradeComponent', 'course'],
-      order: { createdAt: 'DESC' }
-    });
+    const scores = await this.componentScoreModel
+      .find({
+        student: studentId,
+        course: courseId
+      })
+      .populate('gradeComponent course')
+      .sort({ createdAt: -1 });
 
     return scores.map(this.mapToResponseDto);
   }
 
-  async getComponentProgress(studentId: string, courseId: string): Promise<ComponentProgressDto[]> {
-    // Get all grade components for the course
-    const gradeComponents = await this.gradeComponentRepository.find({
-      where: { course: { id: courseId } },
-      order: { category: 'ASC', name: 'ASC' }
-    });
+  async findByCourse(courseId: string): Promise<ComponentScoreResponseDto[]> {
+    const scores = await this.componentScoreModel
+      .find({ course: courseId })
+      .populate('student gradeComponent')
+      .sort({ createdAt: -1 });
 
-    // Get all component scores for the student in this course
-    const componentScores = await this.componentScoreRepository.find({
-      where: {
-        student: { id: studentId },
-        course: { id: courseId }
-      },
-      relations: ['gradeComponent']
-    });
-
-    return gradeComponents.map((component) => {
-      const currentScore = componentScores.find(
-        (score) => score.gradeComponent.id === component.id
-      );
-
-      const pointsEarned = currentScore?.pointsEarned || 0;
-      const progressPercentage = (pointsEarned / component.totalPoints) * 100;
-      const isPassingMinimum = pointsEarned >= component.minimumScore;
-      const pointsNeededToPass = Math.max(0, component.minimumScore - pointsEarned);
-
-      return {
-        gradeComponent: {
-          id: component.id,
-          name: component.name,
-          category: component.category,
-          weight: component.weight,
-          minimumScore: component.minimumScore,
-          totalPoints: component.totalPoints,
-          isMandatory: component.isMandatory
-        },
-        currentScore: currentScore ? this.mapToResponseDto(currentScore) : null,
-        progressPercentage,
-        isPassingMinimum,
-        pointsNeededToPass
-      };
-    });
+    return scores.map(this.mapToResponseDto);
   }
 
-  async updateComponentScore(
-    id: string,
-    updateComponentScoreDto: UpdateComponentScoreDto,
-    user: User
-  ): Promise<ComponentScore> {
-    const componentScore = await this.componentScoreRepository.findOne({
-      where: { id },
-      relations: ['student', 'gradeComponent', 'course']
-    });
+  async getComponentProgress(studentId: string, courseId: string): Promise<any> {
+    const scores = await this.componentScoreModel
+      .find({
+        student: studentId,
+        course: courseId
+      })
+      .populate('gradeComponent');
 
-    if (!componentScore) {
-      throw new NotFoundException('Component score not found');
-    }
-
-    // Students can only update their own scores
-    if (user.role === UserRole.STUDENT && componentScore.student.id !== user.id) {
-      throw new ForbiddenException('You can only update your own scores');
-    }
-
-    // Professors can update scores for their courses
-    if (user.role === UserRole.PROFESSOR) {
-      const course = await this.courseRepository.findOne({
-        where: { id: componentScore.course.id },
-        relations: ['professor']
-      });
-
-      if (course.professor.id !== user.id) {
-        throw new ForbiddenException('You can only update scores for your own courses');
-      }
-    }
-
-    // Validate points earned doesn't exceed total points
-    if (updateComponentScoreDto.pointsEarned !== undefined) {
-      if (updateComponentScoreDto.pointsEarned > componentScore.gradeComponent.totalPoints) {
-        throw new BadRequestException(
-          `Points earned (${updateComponentScoreDto.pointsEarned}) cannot exceed total points (${componentScore.gradeComponent.totalPoints})`
-        );
-      }
-    }
-
-    Object.assign(componentScore, updateComponentScoreDto);
-    return this.componentScoreRepository.save(componentScore);
-  }
-
-  async deleteComponentScore(id: string, user: User): Promise<void> {
-    const componentScore = await this.componentScoreRepository.findOne({
-      where: { id },
-      relations: ['student', 'course']
-    });
-
-    if (!componentScore) {
-      throw new NotFoundException('Component score not found');
-    }
-
-    // Students can only delete their own scores
-    if (user.role === UserRole.STUDENT && componentScore.student.id !== user.id) {
-      throw new ForbiddenException('You can only delete your own scores');
-    }
-
-    // Professors can delete scores for their courses
-    if (user.role === UserRole.PROFESSOR) {
-      const course = await this.courseRepository.findOne({
-        where: { id: componentScore.course.id },
-        relations: ['professor']
-      });
-
-      if (course.professor.id !== user.id) {
-        throw new ForbiddenException('You can only delete scores for your own courses');
-      }
-    }
-
-    await this.componentScoreRepository.remove(componentScore);
-  }
-
-  private mapToResponseDto(componentScore: ComponentScore): ComponentScoreResponseDto {
-    return {
-      id: componentScore.id,
-      pointsEarned: componentScore.pointsEarned,
-      feedback: componentScore.feedback,
-      isSubmitted: componentScore.isSubmitted,
-      isGraded: componentScore.isGraded,
-      createdAt: componentScore.createdAt,
-      updatedAt: componentScore.updatedAt,
-      student: {
-        id: componentScore.student.id,
-        firstName: componentScore.student.firstName,
-        lastName: componentScore.student.lastName,
-        username: componentScore.student.username
-      },
-      gradeComponent: {
-        id: componentScore.gradeComponent.id,
-        name: componentScore.gradeComponent.name,
-        category: componentScore.gradeComponent.category,
-        weight: componentScore.gradeComponent.weight,
-        minimumScore: componentScore.gradeComponent.minimumScore,
-        totalPoints: componentScore.gradeComponent.totalPoints,
-        isMandatory: componentScore.gradeComponent.isMandatory
-      },
-      course: {
-        id: componentScore.course.id,
-        code: componentScore.course.code,
-        name: componentScore.course.name
-      }
+    // Calculate progress based on scores
+    const progress = {
+      totalComponents: scores.length,
+      completedComponents: scores.filter((score) => score.pointsEarned > 0).length,
+      totalPointsEarned: scores.reduce((sum, score) => sum + score.pointsEarned, 0),
+      totalPossiblePoints: scores.reduce((sum, score) => {
+        const component = score.gradeComponent as any;
+        return sum + (component.totalPoints || 0);
+      }, 0)
     };
+
+    (progress as any).percentage =
+      progress.totalPossiblePoints > 0
+        ? (progress.totalPointsEarned / progress.totalPossiblePoints) * 100
+        : 0;
+
+    return progress;
   }
 }

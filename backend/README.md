@@ -14,7 +14,7 @@ A comprehensive NestJS backend API for tracking course grades and projections.
 ## Tech Stack
 
 - **Framework**: NestJS (TypeScript)
-- **Database**: PostgreSQL with TypeORM
+- **Database**: MongoDB with Mongoose
 - **Authentication**: JWT with Passport
 - **File Upload**: Multer for local storage
 - **Validation**: class-validator and class-transformer
@@ -25,7 +25,7 @@ A comprehensive NestJS backend API for tracking course grades and projections.
 ### Prerequisites
 
 - Node.js 18+
-- PostgreSQL 13+
+- MongoDB 4.4+
 - Docker (optional)
 
 ### Local Development
@@ -50,11 +50,11 @@ A comprehensive NestJS backend API for tracking course grades and projections.
    # Edit .env with your database credentials
    ```
 
-4. **Start PostgreSQL** (if not using Docker)
+4. **Start MongoDB** (if not using Docker)
 
    ```bash
-   # Make sure PostgreSQL is running and create the database
-   createdb course_grade_tracker
+   # Make sure MongoDB is running
+   # The database will be created automatically when the app starts
    ```
 
 5. **Run the application**
@@ -71,7 +71,7 @@ The API will be available at `http://localhost:3000/api`
    docker-compose up -d
    ```
 
-This will start both PostgreSQL and the backend application.
+This will start both MongoDB and the backend application.
 
 ## API Endpoints
 
@@ -116,19 +116,15 @@ This will start both PostgreSQL and the backend application.
 
 ## Environment Variables
 
-| Variable            | Description            | Default              |
-| ------------------- | ---------------------- | -------------------- |
-| `DATABASE_HOST`     | PostgreSQL host        | localhost            |
-| `DATABASE_PORT`     | PostgreSQL port        | 5432                 |
-| `DATABASE_USERNAME` | PostgreSQL username    | postgres             |
-| `DATABASE_PASSWORD` | PostgreSQL password    | password             |
-| `DATABASE_NAME`     | Database name          | course_grade_tracker |
-| `JWT_SECRET`        | JWT secret key         | (required)           |
-| `JWT_EXPIRES_IN`    | JWT expiration         | 7d                   |
-| `PORT`              | Application port       | 3000                 |
-| `NODE_ENV`          | Environment            | development          |
-| `UPLOAD_PATH`       | File upload path       | ./uploads            |
-| `MAX_FILE_SIZE`     | Max file size in bytes | 10485760             |
+| Variable         | Description            | Default                                        |
+| ---------------- | ---------------------- | ---------------------------------------------- |
+| `MONGODB_URI`    | MongoDB connection URI | mongodb://localhost:27017/course-grade-tracker |
+| `JWT_SECRET`     | JWT secret key         | (required)                                     |
+| `JWT_EXPIRES_IN` | JWT expiration         | 7d                                             |
+| `PORT`           | Application port       | 3000                                           |
+| `NODE_ENV`       | Environment            | development                                    |
+| `UPLOAD_PATH`    | File upload path       | ./uploads                                      |
+| `MAX_FILE_SIZE`  | Max file size in bytes | 10485760                                       |
 
 ## Database Schema
 
@@ -155,8 +151,8 @@ Files are stored locally in the `uploads/` directory. The API serves files stati
 2. **Run with proper environment variables**
    ```bash
    docker run -p 3000:3000 \
-     -e DATABASE_HOST=your-db-host \
-     -e DATABASE_PASSWORD=your-db-password \
+     -e DATABASE_URI=mongodb://username:password@your-db-host:27017/course_grade_tracker \
+     -e DATABASE_NAME=course_grade_tracker \
      -e JWT_SECRET=your-jwt-secret \
      course-grade-tracker-backend
    ```

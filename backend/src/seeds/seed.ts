@@ -7,8 +7,6 @@ import { UserRole } from '../modules/user/entities/user.entity';
 import { AssignmentType } from '../modules/assignment/entities/assignment.entity';
 import { ComponentType } from '../modules/course/entities/grade-component.entity';
 import * as bcrypt from 'bcrypt';
-import { getRepository } from 'typeorm';
-import { User } from '../modules/user/entities/user.entity';
 
 async function seed() {
   const app = await NestFactory.createApplicationContext(AppModule);
@@ -218,6 +216,10 @@ async function seed() {
     // Enroll students in courses using UserService
     const userService = app.get(UserService);
 
+    // TODO: Implement enrollment seeding when enrollStudent method is properly implemented
+    console.log('⚠️ Skipping student enrollment seeding - enrollStudent method not implemented');
+
+    /*
     // Enroll first 5 students in CS101
     for (let i = 0; i < 5; i++) {
       await userService.enrollStudent({
@@ -243,6 +245,7 @@ async function seed() {
     }
 
     console.log('✓ Enrolled students in courses');
+    */
 
     console.log('\n🎉 Database seeding completed successfully!');
     console.log('\nSample credentials:');

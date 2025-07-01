@@ -1,12 +1,12 @@
 import { Controller, Get } from '@nestjs/common';
-import { InjectDataSource } from '@nestjs/typeorm';
-import { DataSource } from 'typeorm';
+import { InjectConnection } from '@nestjs/mongoose';
+import { Connection } from 'mongoose';
 
 @Controller('health')
 export class HealthController {
   constructor(
-    @InjectDataSource()
-    private dataSource: DataSource
+    @InjectConnection()
+    private connection: Connection
   ) {}
 
   @Get()
@@ -21,11 +21,12 @@ export class HealthController {
 
     try {
       // Check database connection
-      if (this.dataSource.isInitialized) {
-        await this.dataSource.query('SELECT 1');
+      if (this.connection.readyState === 1) {
+        // MongoDB connection check
+        await this.connection.db.admin().ping();
         databaseStatus = 'connected';
       }
-    } catch (error) {
+    } catch {
       databaseStatus = 'error';
     }
 

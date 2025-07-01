@@ -1,17 +1,16 @@
 import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
 import * as bcrypt from 'bcrypt';
 
-import { User } from '../user/entities/user.entity';
+import { User, UserDocument } from '../user/entities/user.entity';
 import { RegisterDto, LoginDto, AuthResponseDto } from './dto/auth.dto';
 
 @Injectable()
 export class AuthService {
   constructor(
-    @InjectRepository(User)
-    private userRepository: Repository<User>,
+    @InjectModel(User.name) private userModel: Model<UserDocument>,
     private jwtService: JwtService
   ) {}
 
@@ -19,27 +18,27 @@ export class AuthService {
     const { username, email, password, ...userData } = registerDto;
 
     // Check if user already exists
-    const existingUser = await this.userRepository.findOne({
-      where: [{ username }, { email }]
-    });
+    const existingUser = await this.userModel
+      .findOne({
+        $or: [{ username }, { email }]
+      })
+      .exec();
 
     if (existingUser) {
       throw new ConflictException('Username or email already exists');
     }
-
-    // Hash password
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
     // Create user
-    const user = this.userRepository.create({
+    const user = new this.userModel({
       username,
       email,
       password: hashedPassword,
       ...userData
     });
 
-    await this.userRepository.save(user);
+    await user.save();
 
     return this.generateAuthResponse(user);
   }
@@ -48,9 +47,7 @@ export class AuthService {
     const { username, password } = loginDto;
 
     // Find user
-    const user = await this.userRepository.findOne({
-      where: { username }
-    });
+    const user = await this.userModel.findOne({ username }).exec();
 
     if (!user || !user.isActive) {
       throw new UnauthorizedException('Invalid credentials');
@@ -66,9 +63,7 @@ export class AuthService {
   }
 
   async validateUser(userId: string): Promise<User> {
-    const user = await this.userRepository.findOne({
-      where: { id: userId, isActive: true }
-    });
+    const user = await this.userModel.findOne({ _id: userId, isActive: true }).exec();
 
     if (!user) {
       throw new UnauthorizedException('User not found');

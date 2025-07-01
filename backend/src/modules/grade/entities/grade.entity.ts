@@ -1,48 +1,51 @@
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  CreateDateColumn,
-  UpdateDateColumn,
-  ManyToOne
-} from 'typeorm';
-import { User } from '../../user/entities/user.entity';
-import { Assignment } from '../../assignment/entities/assignment.entity';
-import { Course } from '../../course/entities/course.entity';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Document, Types } from 'mongoose';
 
-@Entity('grades')
-export class Grade {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
-
-  @Column({ type: 'decimal', precision: 5, scale: 2 })
+@Schema({ timestamps: true, collection: 'grades' })
+export class Grade extends Document {
+  @Prop({ required: true })
   score: number;
 
-  @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })
-  maxScore: number;
+  @Prop()
+  maxScore?: number;
 
-  @Column({ type: 'text', nullable: true })
-  feedback: string;
+  @Prop()
+  feedback?: string;
 
-  @Column({ default: false })
+  @Prop({ default: false })
   isSubmitted: boolean;
 
-  @Column({ default: false })
+  @Prop({ default: false })
   isGraded: boolean;
 
-  @CreateDateColumn()
-  createdAt: Date;
-
-  @UpdateDateColumn()
-  updatedAt: Date;
-
   // Relationships
-  @ManyToOne(() => User, (user) => user.grades)
-  student: User;
+  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
+  student: Types.ObjectId;
 
-  @ManyToOne(() => Assignment, (assignment) => assignment.grades)
-  assignment: Assignment;
+  @Prop({ type: Types.ObjectId, ref: 'Assignment', required: true })
+  assignment: Types.ObjectId;
 
-  @ManyToOne(() => Course)
-  course: Course;
+  @Prop({ type: Types.ObjectId, ref: 'Course', required: true })
+  course: Types.ObjectId;
+
+  // Timestamps are automatically added by Mongoose
+  createdAt?: Date;
+  updatedAt?: Date;
 }
+
+export const GradeSchema = SchemaFactory.createForClass(Grade);
+
+// Transform _id to id in JSON output
+GradeSchema.set('toJSON', {
+  transform: function (doc, ret) {
+    ret.id = ret._id;
+    delete ret._id;
+    delete ret.__v;
+    return ret;
+  }
+});
+
+// Add compound index for student-assignment uniqueness
+GradeSchema.index({ student: 1, assignment: 1 }, { unique: true });
+
+export type GradeDocument = Grade & Document;

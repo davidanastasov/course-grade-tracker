@@ -1,16 +1,5 @@
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  CreateDateColumn,
-  UpdateDateColumn,
-  ManyToOne,
-  OneToMany
-} from 'typeorm';
-import { Course } from '../../course/entities/course.entity';
-import { User } from '../../user/entities/user.entity';
-import { Grade } from '../../grade/entities/grade.entity';
-import { AssignmentFile } from './assignment-file.entity';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Document, Types } from 'mongoose';
 
 export enum AssignmentType {
   LAB = 'lab',
@@ -27,55 +16,76 @@ export enum AssignmentStatus {
   GRADED = 'graded'
 }
 
-@Entity('assignments')
-export class Assignment {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
-
-  @Column()
+@Schema({ timestamps: true, collection: 'assignments' })
+export class Assignment extends Document {
+  @Prop({ required: true })
   title: string;
 
-  @Column({ type: 'text', nullable: true })
-  description: string;
+  @Prop()
+  description?: string;
 
-  @Column({
-    type: 'enum',
-    enum: AssignmentType
+  @Prop({
+    type: String,
+    enum: Object.values(AssignmentType),
+    required: true
   })
   type: AssignmentType;
 
-  @Column({ type: 'decimal', precision: 5, scale: 2 })
+  @Prop({ required: true })
   maxScore: number;
 
-  @Column({ type: 'decimal', precision: 5, scale: 2, default: 0.0 })
+  @Prop({ default: 0.0 })
   weight: number; // Weight in the overall course grade
 
-  @Column({ type: 'timestamp', nullable: true })
-  dueDate: Date;
+  @Prop()
+  dueDate?: Date;
 
-  @Column({
-    type: 'enum',
-    enum: AssignmentStatus,
+  @Prop({
+    type: String,
+    enum: Object.values(AssignmentStatus),
     default: AssignmentStatus.DRAFT
   })
   status: AssignmentStatus;
 
-  @CreateDateColumn()
-  createdAt: Date;
-
-  @UpdateDateColumn()
-  updatedAt: Date;
-
   // Relationships
-  @ManyToOne(() => Course, (course) => course.assignments)
-  course: Course;
+  @Prop({ type: Types.ObjectId, ref: 'Course', required: true })
+  course: Types.ObjectId;
 
-  @ManyToOne(() => User, (user) => user.assignments)
-  createdBy: User;
+  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
+  createdBy: Types.ObjectId;
 
-  @OneToMany(() => Grade, (grade) => grade.assignment)
-  grades: Grade[];
+  // Virtual properties for relationships
+  grades?: Types.ObjectId[];
+  files?: Types.ObjectId[];
 
-  @OneToMany(() => AssignmentFile, (file) => file.assignment, { cascade: true })
-  files: AssignmentFile[];
+  // Timestamps are automatically added by Mongoose
+  createdAt?: Date;
+  updatedAt?: Date;
 }
+
+export const AssignmentSchema = SchemaFactory.createForClass(Assignment);
+
+// Transform _id to id in JSON output
+AssignmentSchema.set('toJSON', {
+  transform: function (doc, ret) {
+    ret.id = ret._id;
+    delete ret._id;
+    delete ret.__v;
+    return ret;
+  }
+});
+
+// Add virtual populate for relationships
+AssignmentSchema.virtual('grades', {
+  ref: 'Grade',
+  localField: '_id',
+  foreignField: 'assignment'
+});
+
+AssignmentSchema.virtual('files', {
+  ref: 'AssignmentFile',
+  localField: '_id',
+  foreignField: 'assignment'
+});
+
+export type AssignmentDocument = Assignment & Document;

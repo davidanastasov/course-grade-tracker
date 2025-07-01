@@ -4,13 +4,21 @@ import {
   ForbiddenException,
   ConflictException
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
 
-import { AssignmentSubmission, SubmissionStatus } from './entities/assignment-submission.entity';
-import { Assignment } from './entities/assignment.entity';
-import { User, UserRole } from '../user/entities/user.entity';
-import { Enrollment, EnrollmentStatus } from '../user/entities/enrollment.entity';
+import {
+  AssignmentSubmission,
+  SubmissionStatus,
+  AssignmentSubmissionDocument
+} from './entities/assignment-submission.entity';
+import { Assignment, AssignmentDocument } from './entities/assignment.entity';
+import { User, UserDocument, UserRole } from '../user/entities/user.entity';
+import {
+  Enrollment,
+  EnrollmentDocument,
+  EnrollmentStatus
+} from '../user/entities/enrollment.entity';
 import {
   CreateSubmissionDto,
   UpdateSubmissionDto,
@@ -21,14 +29,14 @@ import {
 @Injectable()
 export class AssignmentSubmissionService {
   constructor(
-    @InjectRepository(AssignmentSubmission)
-    private submissionRepository: Repository<AssignmentSubmission>,
-    @InjectRepository(Assignment)
-    private assignmentRepository: Repository<Assignment>,
-    @InjectRepository(User)
-    private userRepository: Repository<User>,
-    @InjectRepository(Enrollment)
-    private enrollmentRepository: Repository<Enrollment>
+    @InjectModel(AssignmentSubmission.name)
+    private submissionModel: Model<AssignmentSubmissionDocument>,
+    @InjectModel(Assignment.name)
+    private assignmentModel: Model<AssignmentDocument>,
+    @InjectModel(User.name)
+    private userModel: Model<UserDocument>,
+    @InjectModel(Enrollment.name)
+    private enrollmentModel: Model<EnrollmentDocument>
   ) {}
 
   async createSubmission(
@@ -38,55 +46,37 @@ export class AssignmentSubmissionService {
     const { assignmentId, notes, status } = createSubmissionDto;
 
     // Verify assignment exists and is published
-    const assignment = await this.assignmentRepository.findOne({
-      where: { id: assignmentId },
-      relations: ['course']
-    });
-
+    const assignment = await this.assignmentModel.findById(assignmentId).populate('course');
     if (!assignment) {
       throw new NotFoundException('Assignment not found');
     }
 
     // Verify student is enrolled in the course
-    const enrollment = await this.enrollmentRepository.findOne({
-      where: {
-        student: { id: student.id },
-        course: { id: assignment.course.id },
-        status: EnrollmentStatus.ACTIVE
-      }
+    const enrollment = await this.enrollmentModel.findOne({
+      student: student._id,
+      course: assignment.course._id,
+      status: EnrollmentStatus.ACTIVE
     });
-
     if (!enrollment) {
       throw new ForbiddenException('You are not enrolled in this course');
     }
 
-    // Check if submission already exists
-    const existingSubmission = await this.submissionRepository.findOne({
-      where: {
-        student: { id: student.id },
-        assignment: { id: assignmentId }
-      }
+    // Check for existing submission
+    const existing = await this.submissionModel.findOne({
+      student: student._id,
+      assignment: assignment._id
     });
-
-    if (existingSubmission) {
-      throw new ConflictException('Submission already exists for this assignment');
+    if (existing) {
+      throw new ConflictException('Submission already exists');
     }
 
-    // Check if submission is late
-    const now = new Date();
-    const isLate = assignment.dueDate ? now > assignment.dueDate : false;
-
-    // Create submission
-    const submission = this.submissionRepository.create({
-      student,
-      assignment,
-      status: status || SubmissionStatus.SUBMITTED,
+    const submission = new this.submissionModel({
+      student: student._id,
+      assignment: assignment._id,
       notes,
-      submittedAt: now,
-      isLate
+      status: status || SubmissionStatus.NOT_SUBMITTED
     });
-
-    return this.submissionRepository.save(submission);
+    return submission.save();
   }
 
   async updateSubmission(
@@ -94,34 +84,43 @@ export class AssignmentSubmissionService {
     updateSubmissionDto: UpdateSubmissionDto,
     user: User
   ): Promise<AssignmentSubmission> {
-    const submission = await this.submissionRepository.findOne({
-      where: { id },
-      relations: ['student', 'assignment']
-    });
+    const submission = await this.submissionModel.findById(id).populate([
+      'student',
+      {
+        path: 'assignment',
+        populate: {
+          path: 'course',
+          populate: { path: 'professor' }
+        }
+      }
+    ]);
 
     if (!submission) {
       throw new NotFoundException('Submission not found');
     }
 
     // Students can only update their own submissions
-    if (user.role === UserRole.STUDENT && submission.student.id !== user.id) {
+    if (
+      user.role === UserRole.STUDENT &&
+      (submission.student as any)._id.toString() !== user._id.toString()
+    ) {
       throw new ForbiddenException('You can only update your own submissions');
     }
 
     // Professors can update submissions for their courses
     if (user.role === UserRole.PROFESSOR) {
-      const assignment = await this.assignmentRepository.findOne({
-        where: { id: submission.assignment.id },
-        relations: ['course', 'course.professor']
-      });
-
-      if (assignment.course.professor.id !== user.id) {
+      const assignment = submission.assignment as any;
+      if (
+        !assignment.course ||
+        !assignment.course.professor ||
+        assignment.course.professor._id.toString() !== user._id.toString()
+      ) {
         throw new ForbiddenException('You can only update submissions for your own courses');
       }
     }
 
     Object.assign(submission, updateSubmissionDto);
-    return this.submissionRepository.save(submission);
+    return submission.save();
   }
 
   async markCompleted(
@@ -131,13 +130,17 @@ export class AssignmentSubmissionService {
     const { assignmentId } = markCompletedDto;
 
     // Find or create submission
-    let submission = await this.submissionRepository.findOne({
-      where: {
-        student: { id: student.id },
-        assignment: { id: assignmentId }
-      },
-      relations: ['assignment', 'assignment.course']
-    });
+    let submission = await this.submissionModel
+      .findOne({
+        student: student._id,
+        assignment: assignmentId
+      })
+      .populate([
+        {
+          path: 'assignment',
+          populate: { path: 'course' }
+        }
+      ]);
 
     if (!submission) {
       // Create submission if it doesn't exist
@@ -145,7 +148,14 @@ export class AssignmentSubmissionService {
         assignmentId,
         status: SubmissionStatus.COMPLETED
       };
-      submission = await this.createSubmission(createDto, student);
+      const newSubmission = await this.createSubmission(createDto, student);
+      // repopulate assignment
+      submission = await this.submissionModel.findById(newSubmission._id).populate([
+        {
+          path: 'assignment',
+          populate: { path: 'course' }
+        }
+      ]);
     }
 
     // Mark as completed
@@ -155,22 +165,20 @@ export class AssignmentSubmissionService {
     if (!submission.submittedAt) {
       submission.submittedAt = new Date();
       // Check if late
-      const isLate = submission.assignment.dueDate
-        ? new Date() > submission.assignment.dueDate
-        : false;
+      const assignment = submission.assignment as any;
+      const dueDate = assignment && assignment.dueDate ? assignment.dueDate : undefined;
+      const isLate = dueDate ? new Date() > dueDate : false;
       submission.isLate = isLate;
     }
 
-    return this.submissionRepository.save(submission);
+    return submission.save();
   }
 
   async getSubmissionsByStudent(studentId: string): Promise<SubmissionResponseDto[]> {
-    const submissions = await this.submissionRepository.find({
-      where: { student: { id: studentId } },
-      relations: ['student', 'assignment'],
-      order: { createdAt: 'DESC' }
-    });
-
+    const submissions = await this.submissionModel
+      .find({ student: studentId })
+      .populate('student assignment')
+      .sort({ createdAt: -1 });
     return submissions.map(this.mapToResponseDto);
   }
 
@@ -179,30 +187,31 @@ export class AssignmentSubmissionService {
     user: User
   ): Promise<SubmissionResponseDto[]> {
     // Verify user has access to this assignment
-    const assignment = await this.assignmentRepository.findOne({
-      where: { id: assignmentId },
-      relations: ['course', 'course.professor']
+    const assignment = await this.assignmentModel.findById(assignmentId).populate({
+      path: 'course',
+      populate: { path: 'professor' }
     });
-
     if (!assignment) {
       throw new NotFoundException('Assignment not found');
     }
-
     // Only professors can view all submissions for an assignment
     if (user.role !== UserRole.ADMIN && user.role !== UserRole.PROFESSOR) {
       throw new ForbiddenException('Only professors can view all submissions');
     }
 
-    if (user.role === UserRole.PROFESSOR && assignment.course.professor.id !== user.id) {
+    const populatedCourse = assignment.course as any; // Use any to handle populated object
+    if (
+      user.role === UserRole.PROFESSOR &&
+      (!populatedCourse ||
+        !populatedCourse.professor ||
+        populatedCourse.professor._id.toString() !== user._id.toString())
+    ) {
       throw new ForbiddenException('You can only view submissions for your own courses');
     }
-
-    const submissions = await this.submissionRepository.find({
-      where: { assignment: { id: assignmentId } },
-      relations: ['student', 'assignment'],
-      order: { createdAt: 'DESC' }
-    });
-
+    const submissions = await this.submissionModel
+      .find({ assignment: assignmentId })
+      .populate('student assignment')
+      .sort({ createdAt: -1 });
     return submissions.map(this.mapToResponseDto);
   }
 
@@ -212,43 +221,54 @@ export class AssignmentSubmissionService {
     user: User
   ): Promise<SubmissionResponseDto | null> {
     // Students can only view their own submissions
-    if (user.role === UserRole.STUDENT && user.id !== studentId) {
+    if (user.role === UserRole.STUDENT && user._id.toString() !== studentId) {
       throw new ForbiddenException('Students can only view their own submissions');
     }
-
-    const submission = await this.submissionRepository.findOne({
-      where: {
-        student: { id: studentId },
-        assignment: { id: assignmentId }
-      },
-      relations: ['student', 'assignment']
-    });
-
+    const submission = await this.submissionModel
+      .findOne({
+        student: studentId,
+        assignment: assignmentId
+      })
+      .populate('student assignment');
     return submission ? this.mapToResponseDto(submission) : null;
   }
 
   private mapToResponseDto(submission: AssignmentSubmission): SubmissionResponseDto {
     return {
-      id: submission.id,
+      id: submission._id?.toString() || (submission as any).id?.toString(),
       status: submission.status,
       notes: submission.notes,
       submittedAt: submission.submittedAt,
       completedAt: submission.completedAt,
       isLate: submission.isLate,
-      createdAt: submission.createdAt,
-      updatedAt: submission.updatedAt,
-      student: {
-        id: submission.student.id,
-        firstName: submission.student.firstName,
-        lastName: submission.student.lastName,
-        username: submission.student.username
-      },
-      assignment: {
-        id: submission.assignment.id,
-        title: submission.assignment.title,
-        dueDate: submission.assignment.dueDate,
-        maxScore: submission.assignment.maxScore
-      }
+      createdAt: (submission as any).createdAt,
+      updatedAt: (submission as any).updatedAt,
+      student:
+        submission.student &&
+        typeof submission.student === 'object' &&
+        'firstName' in submission.student
+          ? {
+              id:
+                (submission.student as any)._id?.toString() ||
+                (submission.student as any).id?.toString(),
+              firstName: (submission.student as any).firstName,
+              lastName: (submission.student as any).lastName,
+              username: (submission.student as any).username
+            }
+          : undefined,
+      assignment:
+        submission.assignment &&
+        typeof submission.assignment === 'object' &&
+        'title' in submission.assignment
+          ? {
+              id:
+                (submission.assignment as any)._id?.toString() ||
+                (submission.assignment as any).id?.toString(),
+              title: (submission.assignment as any).title,
+              dueDate: (submission.assignment as any).dueDate,
+              maxScore: (submission.assignment as any).maxScore
+            }
+          : undefined
     };
   }
 }

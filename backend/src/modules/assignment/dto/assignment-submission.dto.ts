@@ -1,8 +1,8 @@
-import { IsEnum, IsOptional, IsString, IsUUID, IsBoolean } from 'class-validator';
+import { IsEnum, IsOptional, IsString, IsMongoId } from 'class-validator';
 import { SubmissionStatus } from '../entities/assignment-submission.entity';
 
 export class CreateSubmissionDto {
-  @IsUUID()
+  @IsMongoId()
   assignmentId: string;
 
   @IsOptional()
@@ -48,6 +48,6 @@ export class SubmissionResponseDto {
 }
 
 export class MarkCompletedDto {
-  @IsUUID()
+  @IsMongoId()
   assignmentId: string;
 }

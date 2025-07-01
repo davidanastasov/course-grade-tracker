@@ -1,5 +1,5 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne } from 'typeorm';
-import { Course } from './course.entity';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Document, Types } from 'mongoose';
 
 export enum ComponentType {
   LAB = 'Lab',
@@ -9,35 +9,48 @@ export enum ComponentType {
   PROJECT = 'Project'
 }
 
-@Entity('grade_components')
-export class GradeComponent {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
-
-  @Column()
+@Schema({ timestamps: true, collection: 'grade_components' })
+export class GradeComponent extends Document {
+  @Prop({ required: true })
   name: string;
 
-  @Column({
-    name: 'type', // Database column name
-    type: 'enum',
-    enum: ComponentType
+  @Prop({
+    type: String,
+    enum: Object.values(ComponentType),
+    required: true
   })
   category: ComponentType;
 
-  @Column({ type: 'decimal', precision: 5, scale: 2 })
+  @Prop({ required: true })
   weight: number; // Percentage (e.g., 30.0 for 30%)
 
-  @Column({ type: 'decimal', precision: 5, scale: 2, default: 0.0 })
+  @Prop({ default: 0.0 })
   minimumScore: number; // Minimum score required for this component
 
-  @Column({ type: 'decimal', precision: 8, scale: 2, default: 100.0 })
+  @Prop({ default: 100.0 })
   totalPoints: number; // Total points available for this component
 
-  @Column({ type: 'boolean', default: false })
+  @Prop({ default: false })
   isMandatory: boolean; // Whether this component is mandatory for passing
 
-  @ManyToOne(() => Course, (course) => course.gradeComponents, {
-    onDelete: 'CASCADE'
-  })
-  course: Course;
+  @Prop({ type: Types.ObjectId, ref: 'Course', required: true })
+  course: Types.ObjectId;
+
+  // Timestamps are automatically added by Mongoose
+  createdAt?: Date;
+  updatedAt?: Date;
 }
+
+export const GradeComponentSchema = SchemaFactory.createForClass(GradeComponent);
+
+// Transform _id to id in JSON output
+GradeComponentSchema.set('toJSON', {
+  transform: function (doc, ret) {
+    ret.id = ret._id;
+    delete ret._id;
+    delete ret.__v;
+    return ret;
+  }
+});
+
+export type GradeComponentDocument = GradeComponent & Document;

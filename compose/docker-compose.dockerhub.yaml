@@ -18,11 +18,8 @@ services:
       - ./.env.backend
     environment:
       - PORT=3000
-      - DATABASE_HOST=db
-      - DATABASE_PORT=5432
-      - DATABASE_USERNAME=${POSTGRES_USER:-postgres}
-      - DATABASE_NAME=${POSTGRES_DB:-course_grade_tracker}
-      - DATABASE_PASSWORD=${POSTGRES_PASSWORD:-password}
+      - DATABASE_URI=mongodb://${MONGODB_ROOT_USERNAME:-admin}:${MONGODB_ROOT_PASSWORD:-password}@db:27017/${MONGODB_INITDB_DATABASE:-course_grade_tracker}
+      - DATABASE_NAME=${MONGODB_INITDB_DATABASE:-course_grade_tracker}
     volumes:
       - uploads_data:/app/uploads
     networks:
@@ -34,19 +31,19 @@ services:
     restart: unless-stopped
 
   db:
-    image: postgres:latest
+    image: mongo:8
     env_file:
       - ./.env.shared
     environment:
-      - POSTGRES_USER=${POSTGRES_USER:-postgres}
-      - POSTGRES_DB=${POSTGRES_DB:-course_grade_tracker}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
+      - MONGO_INITDB_ROOT_USERNAME=${MONGODB_ROOT_USERNAME:-admin}
+      - MONGO_INITDB_DATABASE=${MONGODB_INITDB_DATABASE:-course_grade_tracker}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGODB_ROOT_PASSWORD:-password}
     volumes:
-      - db_data:/var/lib/postgresql/data
+      - db_data:/data/db
     networks:
       - private_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      test: ["CMD", "mongosh", "--eval", "db.runCommand('ping').ok"]
       start_period: 5s
       interval: 30s
       timeout: 10s

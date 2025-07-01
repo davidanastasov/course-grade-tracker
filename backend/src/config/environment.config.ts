@@ -17,26 +17,12 @@ export class EnvironmentVariables {
   @IsOptional()
   PORT: number = 3000;
 
-  // Database configuration
+  // Database configuration (MongoDB)
   @IsString()
-  DATABASE_HOST: string;
-
-  @IsNumber()
-  @Transform(({ value }) => parseInt(value, 10))
-  DATABASE_PORT: number;
-
-  @IsString()
-  DATABASE_USERNAME: string;
-
-  @IsString()
-  DATABASE_PASSWORD: string;
+  DATABASE_URI: string;
 
   @IsString()
   DATABASE_NAME: string;
-
-  @IsString()
-  @IsOptional()
-  DATABASE_SSL: string = 'false'; // Use 'true' for production
 
   // JWT configuration
   @IsString()

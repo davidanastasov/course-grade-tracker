@@ -1,16 +1,20 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model, Types } from 'mongoose';
 import { extname } from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import * as fs from 'fs';
 import * as path from 'path';
 
-import { Assignment, AssignmentStatus } from './entities/assignment.entity';
-import { AssignmentFile } from './entities/assignment-file.entity';
-import { Course } from '../course/entities/course.entity';
-import { User, UserRole } from '../user/entities/user.entity';
-import { Enrollment, EnrollmentStatus } from '../user/entities/enrollment.entity';
+import { Assignment, AssignmentStatus, AssignmentDocument } from './entities/assignment.entity';
+import { AssignmentFile, AssignmentFileDocument } from './entities/assignment-file.entity';
+import { Course, CourseDocument } from '../course/entities/course.entity';
+import { User, UserDocument, UserRole } from '../user/entities/user.entity';
+import {
+  Enrollment,
+  EnrollmentDocument,
+  EnrollmentStatus
+} from '../user/entities/enrollment.entity';
 import {
   CreateAssignmentDto,
   UpdateAssignmentDto,
@@ -21,14 +25,11 @@ import {
 @Injectable()
 export class AssignmentService {
   constructor(
-    @InjectRepository(Assignment)
-    private assignmentRepository: Repository<Assignment>,
-    @InjectRepository(AssignmentFile)
-    private assignmentFileRepository: Repository<AssignmentFile>,
-    @InjectRepository(Course)
-    private courseRepository: Repository<Course>,
-    @InjectRepository(Enrollment)
-    private enrollmentRepository: Repository<Enrollment>
+    @InjectModel(Assignment.name) private assignmentModel: Model<AssignmentDocument>,
+    @InjectModel(AssignmentFile.name) private assignmentFileModel: Model<AssignmentFileDocument>,
+    @InjectModel(Course.name) private courseModel: Model<CourseDocument>,
+    @InjectModel(User.name) private userModel: Model<UserDocument>,
+    @InjectModel(Enrollment.name) private enrollmentModel: Model<EnrollmentDocument>
   ) {}
 
   async createAssignment(
@@ -38,28 +39,26 @@ export class AssignmentService {
     const { courseId, dueDate, ...assignmentData } = createAssignmentDto;
 
     // Verify course exists and user has permission
-    const course = await this.courseRepository.findOne({
-      where: { id: courseId },
-      relations: ['professor']
-    });
-
+    const course = await this.courseModel.findById(courseId).populate('professor');
     if (!course) {
       throw new NotFoundException('Course not found');
     }
 
-    if (course.professor.id !== user.id && user.role !== UserRole.ADMIN) {
+    const professorId = (course.professor as any)?._id || course.professor;
+    const userId = user._id || user.id;
+
+    if (professorId?.toString() !== userId?.toString() && user.role !== UserRole.ADMIN) {
       throw new ForbiddenException('You can only create assignments for your own courses');
     }
 
-    const assignment = this.assignmentRepository.create({
+    const assignment = new this.assignmentModel({
       ...assignmentData,
       dueDate: dueDate ? new Date(dueDate) : null,
-      course,
-      createdBy: user,
+      course: course._id,
+      createdBy: user._id,
       status: AssignmentStatus.DRAFT
     });
-
-    return this.assignmentRepository.save(assignment);
+    return assignment.save();
   }
 
   async findAll(user: User): Promise<AssignmentResponseDto[]> {
@@ -67,44 +66,40 @@ export class AssignmentService {
 
     if (user.role === UserRole.ADMIN) {
       // Admins can see all assignments
-      assignments = await this.assignmentRepository.find({
-        relations: ['course', 'createdBy', 'files'],
-        order: { createdAt: 'DESC' }
-      });
+      assignments = await this.assignmentModel
+        .find()
+        .populate('course createdBy files')
+        .sort({ createdAt: -1 });
     } else if (user.role === UserRole.PROFESSOR) {
       // Professors can only see assignments from their own courses
-      assignments = await this.assignmentRepository.find({
-        where: { course: { professor: { id: user.id } } },
-        relations: ['course', 'createdBy', 'files'],
-        order: { createdAt: 'DESC' }
-      });
+      const courses = await this.courseModel.find({ professor: user._id });
+      const courseIds = courses.map((course) => course._id);
+
+      assignments = await this.assignmentModel
+        .find({ course: { $in: courseIds } })
+        .populate('course createdBy files')
+        .sort({ createdAt: -1 });
     } else {
       // Students can only see assignments from courses they're enrolled in
-      // First get the student's active enrollments
-      const enrollments = await this.enrollmentRepository.find({
-        where: {
-          student: { id: user.id },
+      const enrollments = await this.enrollmentModel
+        .find({
+          student: user._id,
           status: EnrollmentStatus.ACTIVE
-        },
-        relations: ['course']
-      });
+        })
+        .populate('course');
 
-      const courseIds = enrollments.map((enrollment) => enrollment.course.id);
+      const courseIds = enrollments.map((enrollment) => enrollment.course._id);
 
       if (courseIds.length === 0) {
         assignments = [];
       } else {
-        assignments = await this.assignmentRepository
-          .createQueryBuilder('assignment')
-          .leftJoinAndSelect('assignment.course', 'course')
-          .leftJoinAndSelect('assignment.createdBy', 'createdBy')
-          .leftJoinAndSelect('assignment.files', 'files')
-          .where('assignment.course.id IN (:...courseIds)', { courseIds })
-          .andWhere('assignment.status = :assignmentStatus', {
-            assignmentStatus: AssignmentStatus.PUBLISHED
+        assignments = await this.assignmentModel
+          .find({
+            course: { $in: courseIds },
+            status: AssignmentStatus.PUBLISHED
           })
-          .orderBy('assignment.dueDate', 'ASC')
-          .getMany();
+          .populate('course createdBy files')
+          .sort({ dueDate: 1 });
       }
     }
 
@@ -112,19 +107,13 @@ export class AssignmentService {
   }
 
   async findById(id: string, user: User): Promise<AssignmentResponseDto> {
-    const assignment = await this.assignmentRepository.findOne({
-      where: { id },
-      relations: [
-        'course',
-        'course.professor',
-        'course.enrollments',
-        'course.enrollments.student',
-        'createdBy',
-        'grades',
-        'grades.student',
-        'files'
-      ]
-    });
+    const assignment = await this.assignmentModel
+      .findById(id)
+      .populate({
+        path: 'course',
+        populate: [{ path: 'professor' }, { path: 'enrollments', populate: { path: 'student' } }]
+      })
+      .populate('createdBy files grades');
 
     if (!assignment) {
       throw new NotFoundException('Assignment not found');
@@ -135,15 +124,15 @@ export class AssignmentService {
     if (user.role === UserRole.ADMIN) {
       hasAccess = true;
     } else if (user.role === UserRole.PROFESSOR) {
-      hasAccess = assignment.course.professor.id === user.id;
+      hasAccess = (assignment.course as any).professor._id.toString() === user._id.toString();
     } else if (user.role === UserRole.STUDENT) {
       // Students can only view published assignments from courses they're enrolled in
-      hasAccess =
-        assignment.status === AssignmentStatus.PUBLISHED &&
-        assignment.course.enrollments.some(
-          (enrollment) =>
-            enrollment.student.id === user.id && enrollment.status === EnrollmentStatus.ACTIVE
-        );
+      const enrollment = await this.enrollmentModel.findOne({
+        student: user._id,
+        course: assignment.course._id,
+        status: EnrollmentStatus.ACTIVE
+      });
+      hasAccess = assignment.status === AssignmentStatus.PUBLISHED && !!enrollment;
     }
 
     if (!hasAccess) {
@@ -155,10 +144,7 @@ export class AssignmentService {
 
   async findByCourse(courseId: string, user: User): Promise<AssignmentResponseDto[]> {
     // First verify the user has access to this course
-    const course = await this.courseRepository.findOne({
-      where: { id: courseId },
-      relations: ['professor']
-    });
+    const course = await this.courseModel.findById(courseId).populate('professor');
 
     if (!course) {
       throw new NotFoundException('Course not found');
@@ -169,15 +155,17 @@ export class AssignmentService {
     if (user.role === UserRole.ADMIN) {
       hasAccess = true;
     } else if (user.role === UserRole.PROFESSOR) {
-      hasAccess = course.professor.id === user.id;
+      // Handle both _id and id fields, and ensure proper comparison
+      const professorId = (course.professor as unknown as User)?._id || course.professor;
+      const userId = user._id || user.id;
+      hasAccess = professorId?.toString() === userId?.toString();
     } else if (user.role === UserRole.STUDENT) {
       // Check if student is actively enrolled
-      const enrollment = await this.enrollmentRepository.findOne({
-        where: {
-          student: { id: user.id },
-          course: { id: courseId },
-          status: EnrollmentStatus.ACTIVE
-        }
+      const userId = user._id || user.id;
+      const enrollment = await this.enrollmentModel.findOne({
+        student: userId,
+        course: courseId,
+        status: EnrollmentStatus.ACTIVE
       });
       hasAccess = !!enrollment;
     }
@@ -186,30 +174,27 @@ export class AssignmentService {
       throw new ForbiddenException('You do not have access to this course');
     }
 
-    // Build query based on user role
-    const queryBuilder = this.assignmentRepository
-      .createQueryBuilder('assignment')
-      .leftJoinAndSelect('assignment.course', 'course')
-      .leftJoinAndSelect('assignment.createdBy', 'createdBy')
-      .leftJoinAndSelect('assignment.files', 'files')
-      .where('assignment.course.id = :courseId', { courseId });
+    // Build query based on user role - Convert courseId to ObjectId for proper querying
+    const query: any = { course: new Types.ObjectId(courseId) };
 
     // Students should only see published assignments
     if (user.role === UserRole.STUDENT) {
-      queryBuilder.andWhere('assignment.status = :status', { status: AssignmentStatus.PUBLISHED });
+      query.status = AssignmentStatus.PUBLISHED;
     }
 
-    const assignments = await queryBuilder.orderBy('assignment.dueDate', 'ASC').getMany();
+    const assignments = await this.assignmentModel
+      .find(query)
+      .populate('course createdBy files')
+      .sort({ dueDate: 1 });
 
     return assignments.map(this.mapToResponseDto);
   }
 
   async findByProfessor(professorId: string): Promise<AssignmentResponseDto[]> {
-    const assignments = await this.assignmentRepository.find({
-      where: { createdBy: { id: professorId } },
-      relations: ['course', 'createdBy', 'files'],
-      order: { createdAt: 'DESC' }
-    });
+    const assignments = await this.assignmentModel
+      .find({ createdBy: professorId })
+      .populate('course createdBy files')
+      .sort({ createdAt: -1 });
 
     return assignments.map(this.mapToResponseDto);
   }
@@ -219,16 +204,16 @@ export class AssignmentService {
     updateAssignmentDto: UpdateAssignmentDto,
     user: User
   ): Promise<Assignment> {
-    const assignment = await this.assignmentRepository.findOne({
-      where: { id },
-      relations: ['course', 'createdBy']
-    });
+    const assignment = await this.assignmentModel.findById(id).populate('course createdBy');
 
     if (!assignment) {
       throw new NotFoundException('Assignment not found');
     }
 
-    if (assignment.createdBy.id !== user.id && user.role !== UserRole.ADMIN) {
+    const createdById = (assignment.createdBy as unknown as User)?._id || assignment.createdBy;
+    const userId = user._id || user.id;
+
+    if (createdById?.toString() !== userId?.toString() && user.role !== UserRole.ADMIN) {
       throw new ForbiddenException('You can only update your own assignments');
     }
 
@@ -239,24 +224,24 @@ export class AssignmentService {
       assignment.dueDate = new Date(dueDate);
     }
 
-    return this.assignmentRepository.save(assignment);
+    return assignment.save();
   }
 
   async deleteAssignment(id: string, user: User): Promise<void> {
-    const assignment = await this.assignmentRepository.findOne({
-      where: { id },
-      relations: ['createdBy']
-    });
+    const assignment = await this.assignmentModel.findById(id).populate('createdBy');
 
     if (!assignment) {
       throw new NotFoundException('Assignment not found');
     }
 
-    if (assignment.createdBy.id !== user.id && user.role !== UserRole.ADMIN) {
+    if (
+      (assignment.createdBy as any)._id.toString() !== user._id.toString() &&
+      user.role !== UserRole.ADMIN
+    ) {
       throw new ForbiddenException('You can only delete your own assignments');
     }
 
-    await this.assignmentRepository.remove(assignment);
+    await this.assignmentModel.findByIdAndDelete(id);
   }
 
   async uploadAssignmentFile(
@@ -264,16 +249,16 @@ export class AssignmentService {
     file: Express.Multer.File,
     user: User
   ): Promise<AssignmentFileDto> {
-    const assignment = await this.assignmentRepository.findOne({
-      where: { id: assignmentId },
-      relations: ['createdBy']
-    });
+    const assignment = await this.assignmentModel.findById(assignmentId).populate('createdBy');
 
     if (!assignment) {
       throw new NotFoundException('Assignment not found');
     }
 
-    if (assignment.createdBy.id !== user.id && user.role !== UserRole.ADMIN) {
+    if (
+      (assignment.createdBy as any)._id.toString() !== user._id.toString() &&
+      user.role !== UserRole.ADMIN
+    ) {
       throw new ForbiddenException('You can only upload files to your own assignments');
     }
 
@@ -292,19 +277,19 @@ export class AssignmentService {
     fs.writeFileSync(filePath, file.buffer);
 
     // Create assignment file record
-    const assignmentFile = this.assignmentFileRepository.create({
+    const assignmentFile = new this.assignmentFileModel({
       originalName: file.originalname,
       fileName: filename,
       filePath: `/uploads/assignments/${filename}`,
       mimeType: file.mimetype,
       size: file.size,
-      assignment
+      assignment: assignment._id
     });
 
-    const savedFile = await this.assignmentFileRepository.save(assignmentFile);
+    const savedFile = await assignmentFile.save();
 
     return {
-      id: savedFile.id,
+      id: savedFile._id.toString(),
       originalName: savedFile.originalName,
       fileName: savedFile.fileName,
       mimeType: savedFile.mimeType,
@@ -314,58 +299,55 @@ export class AssignmentService {
   }
 
   async publishAssignment(id: string, user: User): Promise<Assignment> {
-    const assignment = await this.assignmentRepository.findOne({
-      where: { id },
-      relations: ['createdBy']
-    });
+    const assignment = await this.assignmentModel.findById(id).populate('createdBy');
 
     if (!assignment) {
       throw new NotFoundException('Assignment not found');
     }
 
-    if (assignment.createdBy.id !== user.id && user.role !== UserRole.ADMIN) {
+    if (
+      (assignment.createdBy as any)._id.toString() !== user._id.toString() &&
+      user.role !== UserRole.ADMIN
+    ) {
       throw new ForbiddenException('You can only publish your own assignments');
     }
 
     assignment.status = AssignmentStatus.PUBLISHED;
-    return this.assignmentRepository.save(assignment);
+    return assignment.save();
   }
 
   async downloadAssignmentFile(
     fileId: string,
     user: User
   ): Promise<{ filePath: string; fileName: string }> {
-    const assignmentFile = await this.assignmentFileRepository.findOne({
-      where: { id: fileId },
-      relations: [
-        'assignment',
-        'assignment.course',
-        'assignment.course.professor',
-        'assignment.course.enrollments',
-        'assignment.course.enrollments.student'
-      ]
+    const assignmentFile = await this.assignmentFileModel.findById(fileId).populate({
+      path: 'assignment',
+      populate: {
+        path: 'course',
+        populate: [{ path: 'professor' }, { path: 'enrollments', populate: { path: 'student' } }]
+      }
     });
 
     if (!assignmentFile) {
       throw new NotFoundException('Assignment file not found');
     }
 
-    const assignment = assignmentFile.assignment;
+    const assignment = assignmentFile.assignment as any;
 
-    // Check if user has access to this assignment using the same logic as findById
+    // Check if user has access to this assignment
     let hasAccess = false;
     if (user.role === UserRole.ADMIN) {
       hasAccess = true;
     } else if (user.role === UserRole.PROFESSOR) {
-      hasAccess = assignment.course.professor.id === user.id;
+      hasAccess = assignment.course.professor._id.toString() === user._id.toString();
     } else if (user.role === UserRole.STUDENT) {
-      // Students can only download files from published assignments from courses they're enrolled in
-      hasAccess =
-        assignment.status === AssignmentStatus.PUBLISHED &&
-        assignment.course.enrollments.some(
-          (enrollment) =>
-            enrollment.student.id === user.id && enrollment.status === EnrollmentStatus.ACTIVE
-        );
+      // Check if student is enrolled
+      const enrollment = await this.enrollmentModel.findOne({
+        student: user._id,
+        course: assignment.course._id,
+        status: EnrollmentStatus.ACTIVE
+      });
+      hasAccess = assignment.status === AssignmentStatus.PUBLISHED && !!enrollment;
     }
 
     if (!hasAccess) {
@@ -387,16 +369,19 @@ export class AssignmentService {
   }
 
   async deleteAssignmentFile(fileId: string, user: User): Promise<{ message: string }> {
-    const assignmentFile = await this.assignmentFileRepository.findOne({
-      where: { id: fileId },
-      relations: ['assignment', 'assignment.createdBy']
+    const assignmentFile = await this.assignmentFileModel.findById(fileId).populate({
+      path: 'assignment',
+      populate: { path: 'createdBy' }
     });
 
     if (!assignmentFile) {
       throw new NotFoundException('Assignment file not found');
     }
 
-    if (assignmentFile.assignment.createdBy.id !== user.id && user.role !== UserRole.ADMIN) {
+    if (
+      (assignmentFile.assignment as any).createdBy._id.toString() !== user._id.toString() &&
+      user.role !== UserRole.ADMIN
+    ) {
       throw new ForbiddenException('You can only delete files from your own assignments');
     }
 
@@ -407,22 +392,19 @@ export class AssignmentService {
     }
 
     // Delete database record
-    await this.assignmentFileRepository.remove(assignmentFile);
+    await this.assignmentFileModel.findByIdAndDelete(fileId);
 
     return { message: 'Assignment file deleted successfully' };
   }
 
   async getAssignmentFiles(assignmentId: string, user: User): Promise<AssignmentFileDto[]> {
-    const assignment = await this.assignmentRepository.findOne({
-      where: { id: assignmentId },
-      relations: [
-        'files',
-        'course',
-        'course.professor',
-        'course.enrollments',
-        'course.enrollments.student'
-      ]
-    });
+    const assignment = await this.assignmentModel.findById(assignmentId).populate([
+      'files',
+      {
+        path: 'course',
+        populate: [{ path: 'professor' }, { path: 'enrollments', populate: { path: 'student' } }]
+      }
+    ]);
 
     if (!assignment) {
       throw new NotFoundException('Assignment not found');
@@ -433,22 +415,26 @@ export class AssignmentService {
     if (user.role === UserRole.ADMIN) {
       hasAccess = true;
     } else if (user.role === UserRole.PROFESSOR) {
-      hasAccess = assignment.course.professor.id === user.id;
+      hasAccess = (assignment.course as any).professor._id.toString() === user._id.toString();
     } else if (user.role === UserRole.STUDENT) {
-      hasAccess =
-        assignment.status === AssignmentStatus.PUBLISHED &&
-        assignment.course.enrollments.some(
-          (enrollment) =>
-            enrollment.student.id === user.id && enrollment.status === EnrollmentStatus.ACTIVE
-        );
+      // Check if student is enrolled
+      const enrollment = await this.enrollmentModel.findOne({
+        student: user._id,
+        course: assignment.course._id,
+        status: EnrollmentStatus.ACTIVE
+      });
+      hasAccess = assignment.status === AssignmentStatus.PUBLISHED && !!enrollment;
     }
 
     if (!hasAccess) {
       throw new ForbiddenException('You do not have access to this assignment');
     }
 
-    return assignment.files.map((file) => ({
-      id: file.id,
+    // Get populated files
+    const files = await this.assignmentFileModel.find({ assignment: assignmentId });
+
+    return files.map((file) => ({
+      id: file._id.toString(),
       originalName: file.originalName,
       fileName: file.fileName,
       mimeType: file.mimeType,
@@ -459,7 +445,7 @@ export class AssignmentService {
 
   private mapToResponseDto(assignment: Assignment): AssignmentResponseDto {
     return {
-      id: assignment.id,
+      id: assignment._id?.toString() || assignment.id?.toString(),
       title: assignment.title,
       description: assignment.description,
       type: assignment.type,
@@ -467,28 +453,52 @@ export class AssignmentService {
       weight: assignment.weight,
       dueDate: assignment.dueDate,
       status: assignment.status,
-      files: assignment.files
-        ? assignment.files.map((file) => ({
-            id: file.id,
-            originalName: file.originalName,
-            fileName: file.fileName,
-            mimeType: file.mimeType,
-            size: file.size,
-            uploadedAt: file.uploadedAt
-          }))
+      files: Array.isArray(assignment.files)
+        ? assignment.files.map((file: unknown) => {
+            // Handle both embedded documents and populated references
+            if (typeof file === 'object' && file !== null && '_id' in file) {
+              const fileData = file as AssignmentFile;
+              return {
+                id: fileData._id?.toString() || (fileData as any).id?.toString(),
+                originalName: fileData.originalName || '',
+                fileName: fileData.fileName || '',
+                mimeType: fileData.mimeType || '',
+                size: fileData.size || 0,
+                uploadedAt: fileData.uploadedAt || new Date()
+              };
+            } else {
+              // It's just an ObjectId
+              return {
+                id: (file as any).toString(),
+                originalName: '',
+                fileName: '',
+                mimeType: '',
+                size: 0,
+                uploadedAt: new Date()
+              };
+            }
+          })
         : [],
       createdAt: assignment.createdAt,
       updatedAt: assignment.updatedAt,
-      course: {
-        id: assignment.course.id,
-        code: assignment.course.code,
-        name: assignment.course.name
-      },
-      createdBy: {
-        id: assignment.createdBy.id,
-        firstName: assignment.createdBy.firstName,
-        lastName: assignment.createdBy.lastName
-      }
+      course: assignment.course
+        ? {
+            id:
+              (assignment.course as unknown as Course)?._id?.toString() ||
+              (assignment.course as unknown as Course)?.id?.toString(),
+            code: (assignment.course as unknown as Course)?.code || '',
+            name: (assignment.course as unknown as Course)?.name || ''
+          }
+        : null,
+      createdBy: assignment.createdBy
+        ? {
+            id:
+              (assignment.createdBy as unknown as User)?._id?.toString() ||
+              (assignment.createdBy as unknown as User)?.id?.toString(),
+            firstName: (assignment.createdBy as unknown as User)?.firstName || '',
+            lastName: (assignment.createdBy as unknown as User)?.lastName || ''
+          }
+        : null
     };
   }
 }

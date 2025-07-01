@@ -1,16 +1,24 @@
 import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { MongooseModule } from '@nestjs/mongoose';
 
 import { CourseService } from './course.service';
 import { CourseController } from './course.controller';
-import { Course } from './entities/course.entity';
-import { GradeComponent } from './entities/grade-component.entity';
-import { GradeBand } from './entities/grade-band.entity';
-import { User } from '../user/entities/user.entity';
-import { Enrollment } from '../user/entities/enrollment.entity';
+import { Course, CourseSchema } from './entities/course.entity';
+import { GradeComponent, GradeComponentSchema } from './entities/grade-component.entity';
+import { GradeBand, GradeBandSchema } from './entities/grade-band.entity';
+import { User, UserSchema } from '../user/entities/user.entity';
+import { Enrollment, EnrollmentSchema } from '../user/entities/enrollment.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Course, GradeComponent, GradeBand, User, Enrollment])],
+  imports: [
+    MongooseModule.forFeature([
+      { name: Course.name, schema: CourseSchema },
+      { name: GradeComponent.name, schema: GradeComponentSchema },
+      { name: GradeBand.name, schema: GradeBandSchema },
+      { name: User.name, schema: UserSchema },
+      { name: Enrollment.name, schema: EnrollmentSchema }
+    ])
+  ],
   controllers: [CourseController],
   providers: [CourseService],
   exports: [CourseService]

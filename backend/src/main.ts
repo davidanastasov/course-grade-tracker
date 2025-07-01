@@ -3,12 +3,16 @@ import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { MongoTransformInterceptor } from './common/interceptors/mongo-transform.interceptor';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   const configService = app.get(ConfigService);
   const port = configService.get<number>('PORT', 3000);
+
+  // Apply MongoDB ID transformation globally
+  app.useGlobalInterceptors(new MongoTransformInterceptor());
 
   // Enable validation globally
   app.useGlobalPipes(

@@ -1,9 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
-import { User, UserRole } from '../modules/user/entities/user.entity';
-import { Course } from '../modules/course/entities/course.entity';
-import { Assignment } from '../modules/assignment/entities/assignment.entity';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { User, UserDocument, UserRole } from '../modules/user/entities/user.entity';
+import { Course, CourseDocument } from '../modules/course/entities/course.entity';
+import { Assignment, AssignmentDocument } from '../modules/assignment/entities/assignment.entity';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -11,13 +11,12 @@ export class SeedService {
   private readonly logger = new Logger(SeedService.name);
 
   constructor(
-    @InjectRepository(User)
-    private readonly userRepository: Repository<User>,
-    @InjectRepository(Course)
-    private readonly courseRepository: Repository<Course>,
-    @InjectRepository(Assignment)
-    private readonly assignmentRepository: Repository<Assignment>,
-    private readonly dataSource: DataSource
+    @InjectModel(User.name)
+    private readonly userModel: Model<UserDocument>,
+    @InjectModel(Course.name)
+    private readonly courseModel: Model<CourseDocument>,
+    @InjectModel(Assignment.name)
+    private readonly assignmentModel: Model<AssignmentDocument>
   ) {}
 
   async runSeeds(): Promise<void> {
@@ -25,22 +24,20 @@ export class SeedService {
       this.logger.log('Starting database seeding...');
 
       // Check if data already exists
-      const userCount = await this.userRepository.count();
+      const userCount = await this.userModel.countDocuments();
       if (userCount > 0) {
         this.logger.log('Database already contains data, skipping seeding');
         return;
       }
 
-      await this.dataSource.transaction(async (manager) => {
-        // Create users
-        await this.createUsers(manager);
+      // Create users
+      await this.createUsers();
 
-        // Create courses
-        await this.createCourses(manager);
+      // Create courses
+      await this.createCourses();
 
-        // Create assignments
-        await this.createAssignments(manager);
-      });
+      // Create assignments
+      await this.createAssignments();
 
       this.logger.log('Database seeding completed successfully');
     } catch (error) {
@@ -49,7 +46,7 @@ export class SeedService {
     }
   }
 
-  private async createUsers(manager: any): Promise<void> {
+  private async createUsers(): Promise<void> {
     this.logger.log('Creating users...');
 
     const adminPassword = await bcrypt.hash('admin123', 10);
@@ -99,27 +96,75 @@ export class SeedService {
       }
     ];
 
-    for (const userData of users) {
-      const user = manager.create(User, userData);
-      await manager.save(User, user);
-    }
-
+    await this.userModel.insertMany(users);
     this.logger.log(`Created ${users.length} users`);
   }
 
-  private async createCourses(manager: any): Promise<void> {
+  private async createCourses(): Promise<void> {
     this.logger.log('Creating courses...');
 
-    // This would include course creation logic
-    // For now, just log that we would create courses
-    this.logger.log('Course creation logic would go here');
+    const professors = await this.userModel.find({ role: UserRole.PROFESSOR });
+    if (professors.length === 0) {
+      this.logger.warn('No professors found, skipping course creation');
+      return;
+    }
+
+    const courses = [
+      {
+        code: 'CS101',
+        name: 'Introduction to Computer Science',
+        credits: 3,
+        passingGrade: 60,
+        professor: professors[0]._id
+      },
+      {
+        code: 'CS201',
+        name: 'Data Structures and Algorithms',
+        credits: 4,
+        passingGrade: 65,
+        professor: professors[1]._id || professors[0]._id
+      }
+    ];
+
+    await this.courseModel.insertMany(courses);
+    this.logger.log(`Created ${courses.length} courses`);
   }
 
-  private async createAssignments(manager: any): Promise<void> {
+  private async createAssignments(): Promise<void> {
     this.logger.log('Creating assignments...');
 
-    // This would include assignment creation logic
-    // For now, just log that we would create assignments
-    this.logger.log('Assignment creation logic would go here');
+    const courses = await this.courseModel.find();
+    const professors = await this.userModel.find({ role: UserRole.PROFESSOR });
+
+    if (courses.length === 0 || professors.length === 0) {
+      this.logger.warn('No courses or professors found, skipping assignment creation');
+      return;
+    }
+
+    const assignments = [
+      {
+        title: 'Hello World Program',
+        description: 'Write your first program',
+        type: 'assignment',
+        maxScore: 100,
+        weight: 0.1,
+        course: courses[0]._id,
+        createdBy: professors[0]._id,
+        status: 'published'
+      },
+      {
+        title: 'Basic Data Structures',
+        description: 'Implement stack and queue',
+        type: 'assignment',
+        maxScore: 150,
+        weight: 0.15,
+        course: courses[1]._id || courses[0]._id,
+        createdBy: professors[1]._id || professors[0]._id,
+        status: 'published'
+      }
+    ];
+
+    await this.assignmentModel.insertMany(assignments);
+    this.logger.log(`Created ${assignments.length} assignments`);
   }
 }

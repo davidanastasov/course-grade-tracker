@@ -1,11 +1,10 @@
 import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigModule } from '@nestjs/config';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 
 import { DatabaseConfig } from './config/database.config';
-import { DatabaseInitService } from './config/database-init.service';
 import { validate } from './config/validation.config';
 import { AppController } from './app.controller';
 import { AuthModule } from './modules/auth/auth.module';
@@ -23,7 +22,7 @@ import { SeedModule } from './seeds/seed.module';
       envFilePath: '.env',
       validate
     }),
-    TypeOrmModule.forRootAsync({
+    MongooseModule.forRootAsync({
       imports: [ConfigModule],
       useClass: DatabaseConfig
     }),
@@ -40,6 +39,6 @@ import { SeedModule } from './seeds/seed.module';
     SeedModule
   ],
   controllers: [AppController],
-  providers: [DatabaseInitService]
+  providers: []
 })
 export class AppModule {}

@@ -1,5 +1,5 @@
 import { IsString, IsNumber, IsOptional, IsDateString, IsEnum, Min } from 'class-validator';
-import { Transform, Type } from 'class-transformer';
+import { Transform } from 'class-transformer';
 import { AssignmentType, AssignmentStatus } from '../entities/assignment.entity';
 
 export class CreateAssignmentDto {

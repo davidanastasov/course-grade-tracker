@@ -16,9 +16,7 @@ import {
   ApiOperation,
   ApiResponse,
   ApiBearerAuth,
-  ApiConsumes,
   ApiForbiddenResponse,
-  ApiNotFoundResponse,
   ApiBadRequestResponse
 } from '@nestjs/swagger';
 
@@ -76,7 +74,9 @@ export class CourseController {
   @Get('my')
   @Roles(UserRole.PROFESSOR)
   async findMyCourses(@GetUser() user: User): Promise<Course[]> {
-    return this.courseService.findByProfessor(user.id);
+    // Use _id if id doesn't exist
+    const userId = user._id?.toString() || user.id?.toString();
+    return this.courseService.findByProfessor(userId);
   }
 
   @Get('enrolled')

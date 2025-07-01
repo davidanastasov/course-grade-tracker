@@ -1,14 +1,5 @@
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  CreateDateColumn,
-  UpdateDateColumn,
-  ManyToOne,
-  Unique
-} from 'typeorm';
-import { User } from '../../user/entities/user.entity';
-import { Assignment } from './assignment.entity';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Document, Types } from 'mongoose';
 
 export enum SubmissionStatus {
   NOT_SUBMITTED = 'not_submitted',
@@ -17,41 +8,42 @@ export enum SubmissionStatus {
   GRADED = 'graded'
 }
 
-@Entity('assignment_submissions')
-@Unique(['student', 'assignment'])
-export class AssignmentSubmission {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
-
-  @Column({
-    type: 'enum',
-    enum: SubmissionStatus,
+@Schema({ timestamps: true, collection: 'assignment_submissions' })
+export class AssignmentSubmission extends Document {
+  @Prop({
+    type: String,
+    enum: Object.values(SubmissionStatus),
     default: SubmissionStatus.NOT_SUBMITTED
   })
   status: SubmissionStatus;
 
-  @Column({ type: 'text', nullable: true })
-  notes: string;
+  @Prop({ type: String, required: false })
+  notes?: string;
 
-  @Column({ type: 'timestamp', nullable: true })
-  submittedAt: Date;
+  @Prop({ type: Date, required: false })
+  submittedAt?: Date;
 
-  @Column({ type: 'timestamp', nullable: true })
-  completedAt: Date;
+  @Prop({ type: Date, required: false })
+  completedAt?: Date;
 
-  @Column({ default: false })
+  @Prop({ type: Boolean, default: false })
   isLate: boolean;
 
-  @CreateDateColumn()
-  createdAt: Date;
+  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
+  student: Types.ObjectId;
 
-  @UpdateDateColumn()
-  updatedAt: Date;
-
-  // Relationships
-  @ManyToOne(() => User, { eager: true })
-  student: User;
-
-  @ManyToOne(() => Assignment, { eager: true })
-  assignment: Assignment;
+  @Prop({ type: Types.ObjectId, ref: 'Assignment', required: true })
+  assignment: Types.ObjectId;
 }
+
+export const AssignmentSubmissionSchema = SchemaFactory.createForClass(AssignmentSubmission);
+
+// Transform _id to id in JSON output
+AssignmentSubmissionSchema.set('toJSON', {
+  transform: function (doc, ret) {
+    ret.id = ret._id;
+    return ret;
+  }
+});
+
+export type AssignmentSubmissionDocument = AssignmentSubmission & Document;

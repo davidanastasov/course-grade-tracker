@@ -1,66 +1,77 @@
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  CreateDateColumn,
-  UpdateDateColumn,
-  ManyToOne,
-  OneToMany
-} from 'typeorm';
-import { User } from '../../user/entities/user.entity';
-import { Enrollment } from '../../user/entities/enrollment.entity';
-import { GradeComponent } from './grade-component.entity';
-import { GradeBand } from './grade-band.entity';
-import { Assignment } from '../../assignment/entities/assignment.entity';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Document, Types } from 'mongoose';
 
-@Entity('courses')
-export class Course {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
-
-  @Column()
+@Schema({ timestamps: true, collection: 'courses' })
+export class Course extends Document {
+  @Prop({ required: true })
   code: string;
 
-  @Column()
+  @Prop({ required: true })
   name: string;
 
-  @Column({ type: 'text', nullable: true })
-  description: string;
+  @Prop()
+  description?: string;
 
-  @Column({ type: 'int', default: 3 })
+  @Prop({ default: 3 })
   credits: number;
 
-  @Column({ type: 'decimal', precision: 5, scale: 2, default: 50.0 })
+  @Prop({ default: 50.0 })
   passingGrade: number;
 
-  @Column({ default: true })
+  @Prop({ default: true })
   isActive: boolean;
 
-  @CreateDateColumn()
-  createdAt: Date;
-
-  @UpdateDateColumn()
-  updatedAt: Date;
-
   // Relationships
-  @ManyToOne(() => User, (user) => user.courses)
-  professor: User;
+  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
+  professor: Types.ObjectId;
 
-  @OneToMany(() => Enrollment, (enrollment) => enrollment.course)
-  enrollments: Enrollment[];
-
-  @OneToMany(() => GradeComponent, (component) => component.course, {
-    cascade: true
-  })
-  gradeComponents: GradeComponent[];
-
-  @OneToMany(() => GradeBand, (band) => band.course, { cascade: true })
-  gradeBands: GradeBand[];
-
-  @OneToMany(() => Assignment, (assignment) => assignment.course)
-  assignments: Assignment[];
+  // Virtual properties for relationships
+  enrollments?: Types.ObjectId[];
+  gradeComponents?: Types.ObjectId[];
+  gradeBands?: Types.ObjectId[];
+  assignments?: Types.ObjectId[];
 
   // Computed properties (not persisted to database)
   enrollmentCount?: number;
   assignmentCount?: number;
+
+  // Timestamps are automatically added by Mongoose
+  createdAt?: Date;
+  updatedAt?: Date;
 }
+
+export const CourseSchema = SchemaFactory.createForClass(Course);
+
+// Configure virtuals to be included in JSON output
+CourseSchema.set('toJSON', { virtuals: true });
+CourseSchema.set('toObject', { virtuals: true });
+
+// Add virtual populate for relationships
+CourseSchema.virtual('enrollments', {
+  ref: 'Enrollment',
+  localField: '_id',
+  foreignField: 'course'
+});
+
+CourseSchema.virtual('gradeComponents', {
+  ref: 'GradeComponent',
+  localField: '_id',
+  foreignField: 'course'
+});
+
+CourseSchema.virtual('gradeBands', {
+  ref: 'GradeBand',
+  localField: '_id',
+  foreignField: 'course'
+});
+
+CourseSchema.virtual('assignments', {
+  ref: 'Assignment',
+  localField: '_id',
+  foreignField: 'course'
+});
+
+// Add index for course code uniqueness
+CourseSchema.index({ code: 1 }, { unique: true });
+
+export type CourseDocument = Course & Document;

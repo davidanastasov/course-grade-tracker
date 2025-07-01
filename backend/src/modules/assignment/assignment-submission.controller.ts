@@ -67,8 +67,7 @@ export class AssignmentSubmissionController {
   @ApiOperation({ summary: 'Get submissions for a student' })
   @ApiResponse({ status: 200, description: 'Student submissions retrieved' })
   async getSubmissionsByStudent(
-    @Param('studentId') studentId: string,
-    @GetUser() user: User
+    @Param('studentId') studentId: string
   ): Promise<SubmissionResponseDto[]> {
     return this.submissionService.getSubmissionsByStudent(studentId);
   }
