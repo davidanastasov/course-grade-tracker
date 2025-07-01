@@ -27,7 +27,7 @@ spec:
                   key: DATABASE_NAME
             - name: PGDATA
               valueFrom:
-                secretKeyRef:
+                configMapKeyRef:
                   name: app-config
                   key: PGDATA
             - name: POSTGRES_USER
