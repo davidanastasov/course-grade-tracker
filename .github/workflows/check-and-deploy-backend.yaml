@@ -71,3 +71,7 @@ jobs:
 
       - name: Push docker image
         run: docker push ${{ secrets.DOCKERHUB_ORG }}/course-grade-tracker-backend:${{ steps.tag.outputs.tag }}
+
+  deploy-cluster:
+    needs: [deploy-backend]
+    uses: ./.github/workflows/deploy-cluster.yml

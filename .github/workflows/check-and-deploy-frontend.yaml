@@ -67,3 +67,7 @@ jobs:
 
       - name: Push Docker image
         run: docker push ${{ secrets.DOCKERHUB_ORG }}/${{ vars.DOCKER_IMAGE_NAME }}:${{ vars.DOCKER_IMAGE_TAG }}
+
+  deploy-cluster:
+    needs: [deploy-frontend]
+    uses: ./.github/workflows/deploy-cluster.yml
