@@ -8,6 +8,7 @@ metadata:
 spec:
   serviceName: "mongodb"
   replicas: 3
+  podManagementPolicy: Parallel
   selector:
     matchLabels:
       app: mongodb
@@ -19,6 +20,11 @@ spec:
       containers:
         - name: mongodb
           image: mongo:8
+          command:
+            - mongod
+            - "--replSet"
+            - "rs0"
+            - "--bind_ip_all"
           ports:
             - containerPort: 27017
           env:
@@ -49,35 +55,77 @@ spec:
             limits:
               memory: "512Mi"
               cpu: "500m"
+              
           livenessProbe:
             exec:
               command:
                 - mongosh
                 - --eval
-                - "db.runCommand('ping').ok"
+                - "\"db.runCommand('ping').ok\""
             initialDelaySeconds: 30
             periodSeconds: 10
+            timeoutSeconds: 5
           readinessProbe:
             exec:
               command:
                 - mongosh
                 - --eval
-                - "db.runCommand('ping').ok"
+                - "\"db.runCommand('ping').ok\""
             initialDelaySeconds: 5
             periodSeconds: 5
+            timeoutSeconds: 5
 
-      initContainers:
-        - name: init-mongodb-replicaset
+
+        - name: rs-init
           image: mongo:8
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: MONGO_INITDB_ROOT_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: MONGODB_ROOT_USERNAME
+            - name: MONGO_INITDB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: MONGODB_ROOT_PASSWORD
           command:
-            - "sh"
-            - "-c"
+            - /bin/sh
+            - -c
             - |
-              until mongo --host mongodb-0.mongodb.course-grade-tracker.svc.cluster.local:27017 --eval "print('waiting for replica set')" > /dev/null; do
+              ORDINAL=$(echo $POD_NAME | awk -F '-' '{print $NF}')
+              if [ "$ORDINAL" != "0" ]; then
+                echo "Not primary pod ($POD_NAME). Exiting rs-init sidecar."
+                while true; do sleep 3600; done
+              fi
+
+              echo "Running replica set initiation on $POD_NAME..."
+
+              until mongosh --host localhost -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin --eval "print('waiting for replica set')" > /dev/null 2>&1; do
                 echo "Waiting for MongoDB to be available..."
                 sleep 5
               done
-              mongo --host mongodb-0.mongodb.course-grade-tracker.svc.cluster.local:27017 --eval 'rs.initiate()'
+
+              sleep 10 # Wait for all pods to be ready
+
+              mongosh --host localhost -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin --eval '
+                rs.initiate({
+                  _id: "rs0",
+                  members: [
+                    { _id: 0, host: "mongodb-0.mongodb.course-grade-tracker.svc.cluster.local:27017" },
+                    { _id: 1, host: "mongodb-1.mongodb.course-grade-tracker.svc.cluster.local:27017" },
+                    { _id: 2, host: "mongodb-2.mongodb.course-grade-tracker.svc.cluster.local:27017" }
+                  ]
+                })
+              '
+
+              echo "Replica set initiated. Exiting rs-init sidecar."
+              while true; do sleep 3600; done
+
 
   volumeClaimTemplates:
     - metadata:
