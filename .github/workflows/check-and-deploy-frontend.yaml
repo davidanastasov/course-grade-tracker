@@ -13,22 +13,11 @@ jobs:
   check-frontend:
     runs-on: ubuntu-latest
     name: Check Frontend
-    strategy:
-      matrix:
-        include:
-          - environment: staging
-            branch: dev
-          - environment: production
-            branch: master
-    environment: ${{ matrix.environment }}
+    environment: ${{ github.ref_name == 'master' && 'production' || 'staging' }}
     defaults:
       run:
         working-directory: frontend
     steps:
-      - name: Skip if branch does not match
-        if: github.ref != format('refs/heads/{0}', matrix.branch)
-        run: echo "Skipping this matrix job because branch does not match" && exit 0
-
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -57,22 +46,11 @@ jobs:
     needs: check-frontend
     runs-on: ubuntu-latest
     name: Deploy Frontend
-    strategy:
-      matrix:
-        include:
-          - environment: staging
-            branch: dev
-          - environment: production
-            branch: master
-    environment: ${{ matrix.environment }}
+    environment: ${{ github.ref_name == 'master' && 'production' || 'staging' }}
     defaults:
       run:
         working-directory: frontend
     steps:
-      - name: Skip if branch does not match
-        if: github.ref != format('refs/heads/{0}', matrix.branch)
-        run: echo "Skipping this matrix job because branch does not match" && exit 0
-
       - name: Checkout
         uses: actions/checkout@v4
         
