@@ -74,15 +74,6 @@ export class UpdateAssignmentDto {
   courseId?: string;
 }
 
-export class AssignmentFileDto {
-  id: string;
-  originalName: string;
-  fileName: string;
-  mimeType: string;
-  size: number;
-  uploadedAt: Date;
-}
-
 export class AssignmentResponseDto {
   id: string;
   title: string;
@@ -92,7 +83,6 @@ export class AssignmentResponseDto {
   weight: number;
   dueDate: Date;
   status: AssignmentStatus;
-  files: AssignmentFileDto[];
   createdAt: Date;
   updatedAt: Date;
   course: {

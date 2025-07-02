@@ -1,16 +1,4 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Delete,
-  Body,
-  Param,
-  UseGuards,
-  UseInterceptors,
-  UploadedFile
-} from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -131,17 +119,6 @@ export class CourseController {
   async deleteCourse(@Param('id') id: string, @GetUser() user: User): Promise<{ message: string }> {
     await this.courseService.deleteCourse(id, user);
     return { message: 'Course deleted successfully' };
-  }
-
-  @Post(':id/upload')
-  @Roles(UserRole.PROFESSOR, UserRole.ADMIN)
-  @UseInterceptors(FileInterceptor('file'))
-  async uploadFile(
-    @Param('id') courseId: string,
-    @UploadedFile() file: Express.Multer.File,
-    @GetUser() user: User
-  ): Promise<{ filePath: string }> {
-    return this.courseService.uploadFile(courseId, file, user);
   }
 
   @Post(':id/grade-components')

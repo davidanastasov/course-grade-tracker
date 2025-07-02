@@ -23,8 +23,6 @@ services:
       - PORT=3000
       - DATABASE_URI=mongodb://${MONGODB_ROOT_USERNAME:-admin}:${MONGODB_ROOT_PASSWORD:-password}@db:27017/${MONGODB_INITDB_DATABASE:-course_grade_tracker}
       - DATABASE_NAME=${MONGODB_INITDB_DATABASE:-course_grade_tracker}
-    volumes:
-      - uploads_data:/app/uploads
     networks:
       - public_network
       - private_network
@@ -55,7 +53,6 @@ services:
 
 volumes:
   db_data:
-  uploads_data:
 
 networks:
   public_network:

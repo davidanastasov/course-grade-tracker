@@ -4,7 +4,7 @@ metadata:
   name: backend
   namespace: course-grade-tracker
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app: backend
@@ -33,10 +33,6 @@ spec:
               cpu: "750m"
               memory: "512Mi"
 
-          volumeMounts:
-            - name: uploads-volume
-              mountPath: /app/uploads
-
           readinessProbe:
             httpGet:
               path: /api/health
@@ -54,8 +50,3 @@ spec:
             periodSeconds: 30
             timeoutSeconds: 5
             failureThreshold: 3
-      
-      volumes:
-        - name: uploads-volume
-          persistentVolumeClaim:
-            claimName: backend-uploads-pvc

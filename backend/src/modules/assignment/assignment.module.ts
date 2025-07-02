@@ -6,7 +6,6 @@ import { AssignmentController } from './assignment.controller';
 import { AssignmentSubmissionService } from './assignment-submission.service';
 import { AssignmentSubmissionController } from './assignment-submission.controller';
 import { Assignment, AssignmentSchema } from './entities/assignment.entity';
-import { AssignmentFile, AssignmentFileSchema } from './entities/assignment-file.entity';
 import {
   AssignmentSubmission,
   AssignmentSubmissionSchema
@@ -19,7 +18,6 @@ import { User, UserSchema } from '../user/entities/user.entity';
   imports: [
     MongooseModule.forFeature([
       { name: Assignment.name, schema: AssignmentSchema },
-      { name: AssignmentFile.name, schema: AssignmentFileSchema },
       { name: AssignmentSubmission.name, schema: AssignmentSubmissionSchema },
       { name: Course.name, schema: CourseSchema },
       { name: Enrollment.name, schema: EnrollmentSchema },

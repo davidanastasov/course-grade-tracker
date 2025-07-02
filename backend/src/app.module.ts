@@ -1,8 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigModule } from '@nestjs/config';
-import { ServeStaticModule } from '@nestjs/serve-static';
-import { join } from 'path';
 
 import { DatabaseConfig } from './config/database.config';
 import { validate } from './config/validation.config';
@@ -25,10 +23,6 @@ import { SeedModule } from './seeds/seed.module';
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       useClass: DatabaseConfig
-    }),
-    ServeStaticModule.forRoot({
-      rootPath: join(__dirname, '..', 'uploads'),
-      serveRoot: '/uploads'
     }),
     AuthModule,
     UserModule,

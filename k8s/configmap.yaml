@@ -5,9 +5,4 @@ metadata:
   namespace: course-grade-tracker
 data:
   NODE_ENV: "production"
-  DATABASE_URI: "mongodb://$(MONGODB_USERNAME):$(MONGODB_PASSWORD)@mongodb:27017/course_grade_tracker"
-  DATABASE_NAME: "course_grade_tracker"
   JWT_EXPIRES_IN: "7d"
-  UPLOAD_PATH: "./uploads"
-  MAX_FILE_SIZE: "10485760"
-  VITE_API_BASE_URL: "/api"

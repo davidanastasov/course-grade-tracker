@@ -1,9 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { extname } from 'path';
-import { v4 as uuidv4 } from 'uuid';
-import * as fs from 'fs';
 
 import { Course, CourseDocument } from './entities/course.entity';
 import { GradeComponent, GradeComponentDocument } from './entities/grade-component.entity';
@@ -247,37 +244,6 @@ export class CourseService {
     }
 
     await this.courseModel.findByIdAndUpdate(id, { isActive: false });
-  }
-
-  async uploadFile(
-    courseId: string,
-    file: Express.Multer.File,
-    user: User
-  ): Promise<{ filePath: string }> {
-    const course = await this.findById(courseId);
-
-    const professorId = course.professor?._id || course.professor;
-    const userId = user._id || user.id;
-
-    if (professorId?.toString() !== userId?.toString() && user.role !== UserRole.ADMIN) {
-      throw new ForbiddenException('You can only upload files to your own courses');
-    }
-
-    // Create uploads directory if it doesn't exist
-    const uploadDir = './uploads';
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-
-    // Generate unique filename
-    const fileExtension = extname(file.originalname);
-    const filename = `${uuidv4()}${fileExtension}`;
-    const filePath = `${uploadDir}/${filename}`;
-
-    // Save file
-    fs.writeFileSync(filePath, file.buffer);
-
-    return { filePath: `/uploads/${filename}` };
   }
 
   async addGradeComponent(

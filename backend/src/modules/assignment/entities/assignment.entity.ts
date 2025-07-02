@@ -56,7 +56,6 @@ export class Assignment extends Document {
 
   // Virtual properties for relationships
   grades?: Types.ObjectId[];
-  files?: Types.ObjectId[];
 
   // Timestamps are automatically added by Mongoose
   createdAt?: Date;
@@ -78,12 +77,6 @@ AssignmentSchema.set('toJSON', {
 // Add virtual populate for relationships
 AssignmentSchema.virtual('grades', {
   ref: 'Grade',
-  localField: '_id',
-  foreignField: 'assignment'
-});
-
-AssignmentSchema.virtual('files', {
-  ref: 'AssignmentFile',
   localField: '_id',
   foreignField: 'assignment'
 });

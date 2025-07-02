@@ -31,14 +31,4 @@ export class EnvironmentVariables {
   @IsString()
   @IsOptional()
   JWT_EXPIRES_IN: string = '7d';
-
-  // File upload configuration
-  @IsString()
-  @IsOptional()
-  UPLOAD_PATH: string = './uploads';
-
-  @IsNumber()
-  @Transform(({ value }) => parseInt(value, 10))
-  @IsOptional()
-  MAX_FILE_SIZE: number = 10485760; // 10MB
 }
